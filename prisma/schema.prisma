@@ -1,0 +1,810 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model ACTIVIDAD {
+  id_actividad      Int             @id(map: "PK__ACTIVIDA__DCD34883F0314D07") @default(autoincrement())
+  id_tipo_actividad Int?
+  nombre            String?         @db.NVarChar(255)
+  descripcion       String?         @db.Text
+  id_crucero        Int?
+  fecha_hora        DateTime?       @db.DateTime
+  ubicacion         String?         @db.NVarChar(255)
+  CRUCERO           CRUCERO?        @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction, map: "FK__ACTIVIDAD__id_cr__318258D2")
+  TIPO_ACTIVIDAD    TIPO_ACTIVIDAD? @relation(fields: [id_tipo_actividad], references: [id_tipo_actividad], onDelete: NoAction, onUpdate: NoAction, map: "FK__ACTIVIDAD__id_ti__308E3499")
+}
+
+model AGENTE_VIAJE {
+  id_agente     Int        @id(map: "PK__AGENTE_V__178FE9936FF7C228") @default(autoincrement())
+  nombre        String?    @db.NVarChar(255)
+  codigo_agente String?    @unique(map: "UQ__AGENTE_V__8161D774136B5380") @db.NVarChar(255)
+  email         String?    @db.NVarChar(255)
+  id_direccion  Int?
+  DIRECCION     DIRECCION? @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction, map: "FK__AGENTE_VI__id_di__76619304")
+  RESERVA       RESERVA[]
+}
+
+model ANTECEDENTE_FAMILIAR {
+  id_antecedente   Int               @id(map: "PK__ANTECEDE__3E014641C7E9E209") @default(autoincrement())
+  id_historial     Int?
+  parentesco       String?           @db.NVarChar(255)
+  id_diagnostico   Int?
+  estado_familiar  String?           @db.NVarChar(255)
+  DIAGNOSTICO      DIAGNOSTICO?      @relation(fields: [id_diagnostico], references: [id_diagnostico], onDelete: NoAction, onUpdate: NoAction, map: "FK__ANTECEDEN__id_di__27F8EE98")
+  HISTORIAL_MEDICO HISTORIAL_MEDICO? @relation(fields: [id_historial], references: [id_historial], onDelete: NoAction, onUpdate: NoAction, map: "FK__ANTECEDEN__id_hi__2704CA5F")
+}
+
+model APLICACION_DESCUENTO {
+  id_aplicacion    Int        @id(map: "PK__APLICACI__D3D4F74AA478CDBC") @default(autoincrement())
+  id_descuento     Int?
+  id_reserva       Int?
+  fecha_aplicacion DateTime?  @db.Date
+  DESCUENTO        DESCUENTO? @relation(fields: [id_descuento], references: [id_descuento], onDelete: NoAction, onUpdate: NoAction, map: "FK__APLICACIO__id_de__11158940")
+  RESERVA          RESERVA?   @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "FK__APLICACIO__id_re__1209AD79")
+}
+
+model ASIGNACION_CABINA {
+  id_reserva       Int
+  id_habitacion    Int
+  fecha_asignacion DateTime? @db.Date
+  precio_final     Decimal?  @db.Decimal(18, 0)
+
+  @@id([id_reserva, id_habitacion], map: "PK__ASIGNACI__654F4CD2D46E4034")
+}
+
+model ASIGNACION_HORARIO {
+  id_asignacion Int       @id(map: "PK__ASIGNACI__C3F7F966184CA741") @default(autoincrement())
+  id_empleado   Int?
+  id_horario    Int?
+  fecha_inicio  DateTime? @db.Date
+  fecha_fin     DateTime? @db.Date
+  EMPLEADO      EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "FK__ASIGNACIO__id_em__17C286CF")
+  HORARIO       HORARIO?  @relation(fields: [id_horario], references: [id_horario], onDelete: NoAction, onUpdate: NoAction, map: "FK__ASIGNACIO__id_ho__18B6AB08")
+}
+
+model ASIGNACION_VIAJE {
+  id_empleado  Int
+  id_viaje     Int
+  rol_viaje    String?   @db.NVarChar(255)
+  fecha_inicio DateTime? @db.Date
+
+  @@id([id_empleado, id_viaje], map: "PK__ASIGNACI__AA20263808CFC0C0")
+}
+
+model AUDITORIA {
+  id_registro_auditoria Int       @id(map: "PK__AUDITORI__A3BB646605D0A6DD") @default(autoincrement())
+  tabla_afectada        String?   @db.NVarChar(255)
+  registro_id           Int?
+  accion                String?   @db.NVarChar(255)
+  id_empleado           Int?
+  fecha_hora            DateTime? @db.DateTime
+  EMPLEADO              EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "FK__AUDITORIA__id_em__382F5661")
+}
+
+model CANAL_VENTA {
+  id_canal     Int       @id(map: "PK__CANAL_VE__D4C01CC8CDE4A89B") @default(autoincrement())
+  nombre_canal String?   @unique(map: "UQ__CANAL_VE__3B2956B017AF4FBD") @db.NVarChar(255)
+  RESERVA      RESERVA[]
+}
+
+model CANCELACION {
+  id_cancelacion    Int       @id(map: "PK__CANCELAC__D14FA59517926833") @default(autoincrement())
+  id_reserva        Int?
+  fecha_cancelacion DateTime? @db.Date
+  motivo            String?   @db.Text
+  monto_reembolsado Decimal?  @db.Decimal(18, 0)
+  RESERVA           RESERVA?  @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "FK__CANCELACI__id_re__39237A9A")
+}
+
+model CARGO {
+  id_cargo              Int        @id(map: "PK__CARGO__D3C09EC5690117A0") @default(autoincrement())
+  nombre_cargo          String?    @unique(map: "UQ__CARGO__322347A087AF0B65") @db.NVarChar(255)
+  nivel_responsabilidad String?    @db.NVarChar(255)
+  EMPLEADO              EMPLEADO[]
+}
+
+model CERTIFICACION {
+  id_certificacion Int       @id(map: "PK__CERTIFIC__D22535EE478D4475") @default(autoincrement())
+  id_empleado      Int?
+  nombre_cert      String?   @db.NVarChar(255)
+  fecha_expiracion DateTime? @db.Date
+  EMPLEADO         EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "FK__CERTIFICA__id_em__1B9317B3")
+}
+
+model CHECK_IN {
+  id_checkin               Int       @id(map: "PK__CHECK_IN__7E2D662E5E801227") @default(autoincrement())
+  id_pasajero              Int?
+  fecha_checkin_online     DateTime? @db.DateTime
+  fecha_checkin_presencial DateTime? @db.DateTime
+  estado                   String?   @db.NVarChar(255)
+  PASAJERO                 PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__CHECK_IN__id_pas__01D345B0")
+}
+
+model CIUDAD {
+  id_ciudad Int         @id(map: "PK__CIUDAD__B7DC4CD502BC5A99") @default(autoincrement())
+  nombre    String?     @db.NVarChar(255)
+  id_pais   Int?
+  PAIS      PAIS?       @relation(fields: [id_pais], references: [id_pais], onDelete: NoAction, onUpdate: NoAction, map: "FK__CIUDAD__id_pais__6AEFE058")
+  DIRECCION DIRECCION[]
+  PUERTO    PUERTO[]
+}
+
+model CLIENTE {
+  id_cliente   Int        @id(map: "PK__CLIENTE__677F38F54B0C01DD") @default(autoincrement())
+  nombre       String?    @db.NVarChar(255)
+  apellido     String?    @db.NVarChar(255)
+  email        String?    @unique(map: "UQ__CLIENTE__AB6E61645DB81FC1") @db.NVarChar(255)
+  telefono     String?    @db.NVarChar(255)
+  nacionalidad String?    @db.NVarChar(255)
+  fecha_nac    DateTime?  @db.Date
+  id_direccion Int?
+  DIRECCION    DIRECCION? @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction, map: "FK__CLIENTE__id_dire__7755B73D")
+  PASAJERO     PASAJERO[]
+  RESERVA      RESERVA[]
+}
+
+model COMPENSACION {
+  id_compensacion Int          @id(map: "PK__COMPENSA__CA4E7D80DFCC695C") @default(autoincrement())
+  id_reserva      Int?
+  id_transaccion  Int?
+  tipo            String?      @db.NVarChar(255)
+  monto           Decimal?     @db.Decimal(18, 0)
+  motivo          String?      @db.Text
+  fecha_registro  DateTime?    @db.Date
+  RESERVA         RESERVA?     @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "FK__COMPENSAC__id_re__3BFFE745")
+  TRANSACCION     TRANSACCION? @relation(fields: [id_transaccion], references: [id_transaccion], onDelete: NoAction, onUpdate: NoAction, map: "FK__COMPENSAC__id_tr__3CF40B7E")
+}
+
+model CONCILIACION {
+  id_conciliacion    Int          @id(map: "PK__CONCILIA__ED741DC50494EB75") @default(autoincrement())
+  id_transaccion     Int?
+  fecha_conciliacion DateTime?    @db.DateTime
+  monto_verificado   Decimal?     @db.Decimal(18, 0)
+  diferencia         Decimal?     @db.Decimal(18, 0)
+  TRANSACCION        TRANSACCION? @relation(fields: [id_transaccion], references: [id_transaccion], onDelete: NoAction, onUpdate: NoAction, map: "FK__CONCILIAC__id_tr__12FDD1B2")
+}
+
+model CONSULTA {
+  id_consulta          Int          @id(map: "PK__CONSULTA__6F53588B94C56B5E") @default(autoincrement())
+  id_pasajero          Int?
+  id_empleado_paciente Int?
+  id_medico            Int?
+  fecha_hora           DateTime?    @db.DateTime
+  motivo_consulta      String?      @db.Text
+  id_diagnostico       Int?
+  DIAGNOSTICO          DIAGNOSTICO? @relation(fields: [id_diagnostico], references: [id_diagnostico], onDelete: NoAction, onUpdate: NoAction, map: "FK__CONSULTA__id_dia__2DB1C7EE")
+  EMPLEADO             EMPLEADO?    @relation(fields: [id_empleado_paciente], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "FK__CONSULTA__id_emp__2BC97F7C")
+  MEDICO               MEDICO?      @relation(fields: [id_medico], references: [id_medico], onDelete: NoAction, onUpdate: NoAction, map: "FK__CONSULTA__id_med__2CBDA3B5")
+  PASAJERO             PASAJERO?    @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__CONSULTA__id_pas__2AD55B43")
+}
+
+model CRUCERO {
+  id_crucero              Int             @id(map: "PK__CRUCERO__38FCBC600F3B6127") @default(autoincrement())
+  nombre                  String?         @db.NVarChar(255)
+  registro_maritimo       String?         @unique(map: "UQ__CRUCERO__7653C1F9289B5C29") @db.NVarChar(255)
+  capacidad_max_pasajeros Int?
+  id_tipo_crucero         Int?
+  ACTIVIDAD               ACTIVIDAD[]
+  TIPO_CRUCERO            TIPO_CRUCERO?   @relation(fields: [id_tipo_crucero], references: [id_tipo_crucero], onDelete: NoAction, onUpdate: NoAction, map: "FK__CRUCERO__id_tipo__6DCC4D03")
+  CUBIERTA                CUBIERTA[]
+  MANTENIMIENTO           MANTENIMIENTO[]
+  PUNTO_VENTA             PUNTO_VENTA[]
+  VIAJE                   VIAJE[]
+}
+
+model CUBIERTA {
+  id_cubierta     Int          @id(map: "PK__CUBIERTA__74C91D5C01997FEF") @default(autoincrement())
+  id_crucero      Int?
+  numero_cubierta Int?
+  descripcion     String?      @db.NVarChar(255)
+  CRUCERO         CRUCERO?     @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction, map: "FK__CUBIERTA__id_cru__6EC0713C")
+  HABITACION      HABITACION[]
+}
+
+model DEPARTAMENTO {
+  id_departamento Int        @id(map: "PK__DEPARTAM__64F37A168C858461") @default(autoincrement())
+  nombre          String?    @unique(map: "UQ__DEPARTAM__72AFBCC6595A5BFA") @db.NVarChar(255)
+  EMPLEADO        EMPLEADO[]
+}
+
+model DESCUENTO {
+  id_descuento         Int                    @id(map: "PK__DESCUENT__4F9A1A809AAA1BF8") @default(autoincrement())
+  codigo               String?                @unique(map: "UQ__DESCUENT__40F9A2068BBA181B") @db.NVarChar(255)
+  nombre               String?                @db.NVarChar(255)
+  porcentaje           Decimal?               @db.Decimal(18, 0)
+  monto_fijo           Decimal?               @db.Decimal(18, 0)
+  APLICACION_DESCUENTO APLICACION_DESCUENTO[]
+}
+
+model DESEMBARQUE {
+  id_desembarque         Int       @id(map: "PK__DESEMBAR__3729661E676E4FD2") @default(autoincrement())
+  id_pasajero            Int?
+  id_escala              Int?
+  fecha_hora_desembarque DateTime? @db.DateTime
+  ESCALA                 ESCALA?   @relation(fields: [id_escala], references: [id_escala], onDelete: NoAction, onUpdate: NoAction, map: "FK__DESEMBARQ__id_es__05A3D694")
+  PASAJERO               PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__DESEMBARQ__id_pa__04AFB25B")
+}
+
+model DETALLE_FACTURA {
+  id_factura        Int
+  id_transaccion    Int
+  monto_linea       Decimal? @db.Decimal(18, 0)
+  descripcion_cargo String?  @db.NVarChar(255)
+
+  @@id([id_factura, id_transaccion], map: "PK__DETALLE___EDE5415A16BCBA52")
+}
+
+model DETALLE_ORDEN_COMPRA {
+  id_orden       Int
+  id_producto    Int
+  cantidad       Int?
+  costo_unitario Decimal? @db.Decimal(18, 0)
+
+  @@id([id_orden, id_producto], map: "PK__DETALLE___12A8CEF35BD1A4FC")
+}
+
+model DIAGNOSTICO {
+  id_diagnostico       Int                    @id(map: "PK__DIAGNOST__1384B745642E7542") @default(autoincrement())
+  nombre               String?                @unique(map: "UQ__DIAGNOST__72AFBCC62F3A15C3") @db.NVarChar(255)
+  codigo_cie           String?                @db.NVarChar(255)
+  ANTECEDENTE_FAMILIAR ANTECEDENTE_FAMILIAR[]
+  CONSULTA             CONSULTA[]
+}
+
+model DIRECCION {
+  id_direccion  Int            @id(map: "PK__DIRECCIO__25C35D070ABA9079") @default(autoincrement())
+  calle         String?        @db.NVarChar(255)
+  numero        String?        @db.NVarChar(255)
+  barrio        String?        @db.NVarChar(255)
+  provincia     String?        @db.NVarChar(255)
+  codigo_postal String?        @db.NVarChar(255)
+  id_ciudad     Int?
+  AGENTE_VIAJE  AGENTE_VIAJE[]
+  CLIENTE       CLIENTE[]
+  CIUDAD        CIUDAD?        @relation(fields: [id_ciudad], references: [id_ciudad], onDelete: NoAction, onUpdate: NoAction, map: "FK__DIRECCION__id_ci__6BE40491")
+  PROVEEDOR     PROVEEDOR[]
+}
+
+model DOCUMENTO {
+  id_documento      Int             @id(map: "PK__DOCUMENT__5D2EE7E54FCE3920") @default(autoincrement())
+  id_pasajero       Int?
+  id_tipo_documento Int?
+  numero_documento  String?         @db.NVarChar(255)
+  fecha_expedicion  DateTime?       @db.Date
+  fecha_expiracion  DateTime?       @db.Date
+  PASAJERO          PASAJERO?       @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__DOCUMENTO__id_pa__7FEAFD3E")
+  TIPO_DOCUMENTO    TIPO_DOCUMENTO? @relation(fields: [id_tipo_documento], references: [id_tipo_documento], onDelete: NoAction, onUpdate: NoAction, map: "FK__DOCUMENTO__id_ti__00DF2177")
+}
+
+model EMBARQUE {
+  id_embarque         Int       @id(map: "PK__EMBARQUE__F092A715590D6B12") @default(autoincrement())
+  id_pasajero         Int?
+  id_escala           Int?
+  fecha_hora_embarque DateTime? @db.DateTime
+  ESCALA              ESCALA?   @relation(fields: [id_escala], references: [id_escala], onDelete: NoAction, onUpdate: NoAction, map: "FK__EMBARQUE__id_esc__03BB8E22")
+  PASAJERO            PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__EMBARQUE__id_pas__02C769E9")
+}
+
+model EMERGENCIA {
+  id_emergencia Int       @id(map: "PK__EMERGENC__E1B86AD389FDEE3F") @default(autoincrement())
+  tipo          String?   @db.NVarChar(255)
+  fecha_hora    DateTime? @db.DateTime
+  descripcion   String?   @db.Text
+  id_pasajero   Int?
+  id_empleado   Int?
+  EMPLEADO      EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "FK__EMERGENCI__id_em__2F9A1060")
+  PASAJERO      PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__EMERGENCI__id_pa__2EA5EC27")
+}
+
+model EMPLEADO {
+  id_empleado           Int                     @id(map: "PK__EMPLEADO__88B51394C8E3ABF0") @default(autoincrement())
+  nombre                String?                 @db.NVarChar(255)
+  apellido              String?                 @db.NVarChar(255)
+  fecha_nac             DateTime?               @db.Date
+  id_cargo              Int?
+  id_departamento       Int?
+  fecha_contrato        DateTime?               @db.Date
+  ASIGNACION_HORARIO    ASIGNACION_HORARIO[]
+  AUDITORIA             AUDITORIA[]
+  CERTIFICACION         CERTIFICACION[]
+  CONSULTA              CONSULTA[]
+  EMERGENCIA            EMERGENCIA[]
+  CARGO                 CARGO?                  @relation(fields: [id_cargo], references: [id_cargo], onDelete: NoAction, onUpdate: NoAction, map: "FK__EMPLEADO__id_car__13F1F5EB")
+  DEPARTAMENTO          DEPARTAMENTO?           @relation(fields: [id_departamento], references: [id_departamento], onDelete: NoAction, onUpdate: NoAction, map: "FK__EMPLEADO__id_dep__14E61A24")
+  HISTORIAL_SALARIO     HISTORIAL_SALARIO[]
+  MEDICO                MEDICO?
+  MOVIMIENTO_INVENTARIO MOVIMIENTO_INVENTARIO[]
+  RECLAMO_SUGERENCIA    RECLAMO_SUGERENCIA[]
+  TAREA_MANTENIMIENTO   TAREA_MANTENIMIENTO[]
+  USUARIO               USUARIO?
+}
+
+model EQUIPAJE {
+  id_equipaje       Int       @id(map: "PK__EQUIPAJE__F3A2943DDF1AE3F1") @default(autoincrement())
+  id_pasajero       Int?
+  numero_etiqueta   String?   @unique(map: "UQ__EQUIPAJE__4F6E51765186F923") @db.NVarChar(255)
+  peso              Decimal?  @db.Decimal(18, 0)
+  estado            String?   @db.NVarChar(255)
+  id_escala_entrega Int?
+  ESCALA            ESCALA?   @relation(fields: [id_escala_entrega], references: [id_escala], onDelete: NoAction, onUpdate: NoAction, map: "FK__EQUIPAJE__id_esc__078C1F06")
+  PASAJERO          PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__EQUIPAJE__id_pas__0697FACD")
+}
+
+model ESCALA {
+  id_escala          Int            @id(map: "PK__ESCALA__16F56804EF30C9ED") @default(autoincrement())
+  id_itinerario      Int?
+  id_puerto          Int?
+  orden_escala       Int?
+  fecha_llegada_prog DateTime?      @db.DateTime
+  fecha_salida_prog  DateTime?      @db.DateTime
+  DESEMBARQUE        DESEMBARQUE[]
+  EMBARQUE           EMBARQUE[]
+  EQUIPAJE           EQUIPAJE[]
+  ITINERARIO         ITINERARIO?    @relation(fields: [id_itinerario], references: [id_itinerario], onDelete: NoAction, onUpdate: NoAction, map: "FK__ESCALA__id_itine__719CDDE7")
+  PUERTO             PUERTO?        @relation(fields: [id_puerto], references: [id_puerto], onDelete: NoAction, onUpdate: NoAction, map: "FK__ESCALA__id_puert__72910220")
+  EXCURSION          EXCURSION[]
+  ORDEN_COMPRA       ORDEN_COMPRA[]
+}
+
+model EXCURSION {
+  id_excursion          Int                     @id(map: "PK__EXCURSIO__E348998B90553A5E") @default(autoincrement())
+  id_escala             Int?
+  nombre                String?                 @db.NVarChar(255)
+  duracion              DateTime?               @db.Time
+  costo                 Decimal?                @db.Decimal(18, 0)
+  ESCALA                ESCALA?                 @relation(fields: [id_escala], references: [id_escala], onDelete: NoAction, onUpdate: NoAction, map: "FK__EXCURSION__id_es__32767D0B")
+  INSCRIPCION_EXCURSION INSCRIPCION_EXCURSION[]
+}
+
+model FACTURA {
+  id_factura      Int           @id(map: "PK__FACTURA__6C08ED53FCCD7086") @default(autoincrement())
+  id_reserva      Int?
+  id_tipo_factura Int?
+  fecha_emision   DateTime?     @db.Date
+  monto_total     Decimal?      @db.Decimal(18, 0)
+  RESERVA         RESERVA?      @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "FK__FACTURA__id_rese__0F2D40CE")
+  TIPO_FACTURA    TIPO_FACTURA? @relation(fields: [id_tipo_factura], references: [id_tipo_factura], onDelete: NoAction, onUpdate: NoAction, map: "FK__FACTURA__id_tipo__10216507")
+}
+
+model FOLIO_PASAJERO {
+  id_folio       Int           @id(map: "PK__FOLIO_PA__B37BCF3DCF1BAAA7") @default(autoincrement())
+  id_pasajero    Int?          @unique(map: "UQ__FOLIO_PA__6A07178D8BC1E95E")
+  saldo_actual   Decimal?      @default(0, map: "DF__FOLIO_PAS__saldo__01142BA1") @db.Decimal(18, 0)
+  limite_credito Decimal?      @db.Decimal(18, 0)
+  PASAJERO       PASAJERO?     @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__FOLIO_PAS__id_pa__0C50D423")
+  TRANSACCION    TRANSACCION[]
+}
+
+model HABITACION {
+  id_habitacion      Int              @id(map: "PK__HABITACI__773F28F3F2738DE6") @default(autoincrement())
+  id_cubierta        Int?
+  numero_cabina      String?          @db.NVarChar(255)
+  id_tipo_habitacion Int?
+  estado             String?          @db.NVarChar(255)
+  CUBIERTA           CUBIERTA?        @relation(fields: [id_cubierta], references: [id_cubierta], onDelete: NoAction, onUpdate: NoAction, map: "FK__HABITACIO__id_cu__6FB49575")
+  TIPO_HABITACION    TIPO_HABITACION? @relation(fields: [id_tipo_habitacion], references: [id_tipo_habitacion], onDelete: NoAction, onUpdate: NoAction, map: "FK__HABITACIO__id_ti__70A8B9AE")
+}
+
+model HABITO_TOXICO {
+  id_habito   Int     @id(map: "PK__HABITO_T__70FC384F25D90F3A") @default(autoincrement())
+  nombre      String? @db.NVarChar(255)
+  descripcion String? @db.Text
+}
+
+model HISTORIAL_MEDICO {
+  id_historial            Int                    @id(map: "PK__HISTORIA__76E6C50248C425EF") @default(autoincrement())
+  id_pasajero             Int?                   @unique(map: "UQ__HISTORIA__6A07178DC1BCB041")
+  antecedentes_relevantes String?                @db.Text
+  alergias                String?                @db.Text
+  grupo_sanguineo         String?                @db.NVarChar(255)
+  ANTECEDENTE_FAMILIAR    ANTECEDENTE_FAMILIAR[]
+  PASAJERO                PASAJERO?              @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__HISTORIAL__id_pa__2610A626")
+  REGISTRO_VACUNA         REGISTRO_VACUNA[]
+  TRANSFUSION             TRANSFUSION[]
+}
+
+model HISTORIAL_SALARIO {
+  id_historial     Int             @id(map: "PK__HISTORIA__76E6C502BAABC001") @default(autoincrement())
+  id_empleado      Int?
+  salario_anterior Decimal?        @db.Decimal(18, 0)
+  salario_nuevo    Decimal?        @db.Decimal(18, 0)
+  fecha_cambio     DateTime?       @db.Date
+  id_motivo        Int?
+  EMPLEADO         EMPLEADO?       @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "FK__HISTORIAL__id_em__19AACF41")
+  MOTIVO_SALARIO   MOTIVO_SALARIO? @relation(fields: [id_motivo], references: [id_motivo], onDelete: NoAction, onUpdate: NoAction, map: "FK__HISTORIAL__id_mo__1A9EF37A")
+}
+
+model HORARIO {
+  id_horario         Int                  @id(map: "PK__HORARIO__C5836D6942E6C44F") @default(autoincrement())
+  nombre             String?              @db.NVarChar(255)
+  hora_inicio        DateTime?            @db.Time
+  hora_fin           DateTime?            @db.Time
+  ASIGNACION_HORARIO ASIGNACION_HORARIO[]
+}
+
+model INSCRIPCION_EXCURSION {
+  id_inscripcion    Int        @id(map: "PK__INSCRIPC__CB0117BA6B90AC2C") @default(autoincrement())
+  id_pasajero       Int?
+  id_excursion      Int?
+  fecha_inscripcion DateTime?  @db.DateTime
+  estado            String?    @db.NVarChar(255)
+  EXCURSION         EXCURSION? @relation(fields: [id_excursion], references: [id_excursion], onDelete: NoAction, onUpdate: NoAction, map: "FK__INSCRIPCI__id_ex__345EC57D")
+  PASAJERO          PASAJERO?  @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__INSCRIPCI__id_pa__336AA144")
+}
+
+model INVENTARIO {
+  id_producto    Int
+  id_punto_venta Int
+  stock_actual   Int?
+  stock_minimo   Int?
+
+  @@id([id_producto, id_punto_venta], map: "PK__INVENTAR__8F500A5E3E418E4C")
+}
+
+model ITINERARIO {
+  id_itinerario Int      @id(map: "PK__ITINERAR__77DC383BB2E847B8") @default(autoincrement())
+  nombre_ruta   String?  @db.NVarChar(255)
+  descripcion   String?  @db.Text
+  ESCALA        ESCALA[]
+  VIAJE         VIAJE[]
+}
+
+model MANTENIMIENTO {
+  id_mantenimiento    Int                   @id(map: "PK__MANTENIM__707E5D166219458D") @default(autoincrement())
+  id_crucero          Int?
+  fecha_inicio        DateTime?             @db.Date
+  fecha_fin_estimada  DateTime?             @db.Date
+  estado              String?               @db.NVarChar(255)
+  tipo_mantenimiento  String?               @db.NVarChar(255)
+  CRUCERO             CRUCERO?              @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction, map: "FK__MANTENIMI__id_cr__3552E9B6")
+  TAREA_MANTENIMIENTO TAREA_MANTENIMIENTO[]
+}
+
+model MAYORDOMO_HABITACION {
+  id_empleado   Int
+  id_habitacion Int
+  id_viaje      Int
+
+  @@id([id_empleado, id_habitacion, id_viaje], map: "PK__MAYORDOM__6DEFB241DF73764A")
+}
+
+model MEDICAMENTO {
+  id_medicamento     Int     @id(map: "PK__MEDICAME__2588C0322CDF6428") @default(autoincrement())
+  nombre_comercial   String? @db.NVarChar(255)
+  ingrediente_activo String? @db.NVarChar(255)
+}
+
+model MEDICO {
+  id_medico       Int        @id(map: "PK__MEDICO__E038EB43C70EEF68") @default(autoincrement())
+  id_empleado     Int?       @unique(map: "UQ__MEDICO__88B51395C54E1B15")
+  licencia_medica String?    @db.NVarChar(255)
+  CONSULTA        CONSULTA[]
+  EMPLEADO        EMPLEADO?  @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "FK__MEDICO__id_emple__251C81ED")
+}
+
+model METODO_PAGO {
+  id_metodo     Int            @id(map: "PK__METODO_P__1BBFF0F4F5E9CA25") @default(autoincrement())
+  nombre_metodo String?        @unique(map: "UQ__METODO_P__E81160F8949E1DAA") @db.NVarChar(255)
+  PAGO_RESERVA  PAGO_RESERVA[]
+}
+
+model MONEDA {
+  id_moneda    Int            @id(map: "PK__MONEDA__807063E3311A571F") @default(autoincrement())
+  codigo       String?        @unique(map: "UQ__MONEDA__40F9A206C8BBB55B") @db.NVarChar(255)
+  nombre       String?        @db.NVarChar(255)
+  PAGO_RESERVA PAGO_RESERVA[]
+}
+
+model MOTIVO_SALARIO {
+  id_motivo         Int                 @id(map: "PK__MOTIVO_S__FCA2F0C8D352CD8A") @default(autoincrement())
+  descripcion       String?             @db.NVarChar(255)
+  HISTORIAL_SALARIO HISTORIAL_SALARIO[]
+}
+
+model MOVIMIENTO_INVENTARIO {
+  id_movimiento   Int          @id(map: "PK__MOVIMIEN__2A071C24FEE15A4E") @default(autoincrement())
+  id_producto     Int?
+  id_punto_venta  Int?
+  tipo_movimiento String?      @db.NVarChar(255)
+  cantidad        Int?
+  fecha_hora      DateTime?    @db.DateTime
+  id_empleado     Int?
+  EMPLEADO        EMPLEADO?    @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "FK__MOVIMIENT__id_em__24285DB4")
+  PRODUCTO        PRODUCTO?    @relation(fields: [id_producto], references: [id_producto], onDelete: NoAction, onUpdate: NoAction, map: "FK__MOVIMIENT__id_pr__22401542")
+  PUNTO_VENTA     PUNTO_VENTA? @relation(fields: [id_punto_venta], references: [id_punto_venta], onDelete: NoAction, onUpdate: NoAction, map: "FK__MOVIMIENT__id_pu__2334397B")
+}
+
+model ORDEN_COMPRA {
+  id_orden          Int        @id(map: "PK__ORDEN_CO__DD5B8F337AC6F7A4") @default(autoincrement())
+  id_proveedor      Int?
+  fecha_orden       DateTime?  @db.Date
+  id_escala_entrega Int?
+  estado            String?    @db.NVarChar(255)
+  ESCALA            ESCALA?    @relation(fields: [id_escala_entrega], references: [id_escala], onDelete: NoAction, onUpdate: NoAction, map: "FK__ORDEN_COM__id_es__214BF109")
+  PROVEEDOR         PROVEEDOR? @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: NoAction, onUpdate: NoAction, map: "FK__ORDEN_COM__id_pr__2057CCD0")
+}
+
+model PAGO_RESERVA {
+  id_pago             Int          @id(map: "PK__PAGO_RES__0941B074286B13FA") @default(autoincrement())
+  id_reserva          Int?
+  id_metodo           Int?
+  id_moneda           Int?
+  monto               Decimal?     @db.Decimal(18, 0)
+  fecha_pago          DateTime?    @db.DateTime
+  referencia_bancaria String?      @db.NVarChar(255)
+  estado              String?      @db.NVarChar(255)
+  METODO_PAGO         METODO_PAGO? @relation(fields: [id_metodo], references: [id_metodo], onDelete: NoAction, onUpdate: NoAction, map: "FK__PAGO_RESE__id_me__0A688BB1")
+  MONEDA              MONEDA?      @relation(fields: [id_moneda], references: [id_moneda], onDelete: NoAction, onUpdate: NoAction, map: "FK__PAGO_RESE__id_mo__0B5CAFEA")
+  RESERVA             RESERVA?     @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "FK__PAGO_RESE__id_re__09746778")
+}
+
+model PAIS {
+  id_pais    Int      @id(map: "PK__PAIS__0941A3A754336A4E") @default(autoincrement())
+  nombre     String?  @db.NVarChar(255)
+  codigo_iso String?  @unique(map: "UQ__PAIS__296D3C106C688A55") @db.NVarChar(255)
+  CIUDAD     CIUDAD[]
+}
+
+model PASAJERO {
+  id_pasajero           Int                     @id(map: "PK__PASAJERO__6A07178C240FB12C") @default(autoincrement())
+  id_reserva            Int?
+  nombre                String?                 @db.NVarChar(255)
+  apellido              String?                 @db.NVarChar(255)
+  relacion_titular      String?                 @db.NVarChar(255)
+  id_cliente_referencia Int?
+  CHECK_IN              CHECK_IN[]
+  CONSULTA              CONSULTA[]
+  DESEMBARQUE           DESEMBARQUE[]
+  DOCUMENTO             DOCUMENTO[]
+  EMBARQUE              EMBARQUE[]
+  EMERGENCIA            EMERGENCIA[]
+  EQUIPAJE              EQUIPAJE[]
+  FOLIO_PASAJERO        FOLIO_PASAJERO?
+  HISTORIAL_MEDICO      HISTORIAL_MEDICO?
+  INSCRIPCION_EXCURSION INSCRIPCION_EXCURSION[]
+  CLIENTE               CLIENTE?                @relation(fields: [id_cliente_referencia], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "FK__PASAJERO__id_cli__7E02B4CC")
+  RESERVA               RESERVA?                @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "FK__PASAJERO__id_res__7D0E9093")
+  RECLAMO_SUGERENCIA    RECLAMO_SUGERENCIA[]
+  TICKET                TICKET[]
+}
+
+model PASAJERO_HABITO_TOXICO {
+  id_historial Int
+  id_habito    Int
+
+  @@id([id_historial, id_habito], map: "PK__PASAJERO__91E90686134E2333")
+}
+
+model PRODUCTO {
+  id_producto           Int                     @id(map: "PK__PRODUCTO__FF341C0DD700CC40") @default(autoincrement())
+  nombre                String?                 @db.NVarChar(255)
+  descripcion           String?                 @db.Text
+  id_proveedor          Int?
+  precio_compra         Decimal?                @db.Decimal(18, 0)
+  precio_venta          Decimal?                @db.Decimal(18, 0)
+  MOVIMIENTO_INVENTARIO MOVIMIENTO_INVENTARIO[]
+  PROVEEDOR             PROVEEDOR?              @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: NoAction, onUpdate: NoAction, map: "FK__PRODUCTO__id_pro__1E6F845E")
+}
+
+model PROVEEDOR {
+  id_proveedor      Int             @id(map: "PK__PROVEEDO__8D3DFE284BD2CDA3") @default(autoincrement())
+  nombre            String?         @db.NVarChar(255)
+  contacto          String?         @db.NVarChar(255)
+  id_direccion      Int?
+  id_tipo_proveedor Int?
+  ORDEN_COMPRA      ORDEN_COMPRA[]
+  PRODUCTO          PRODUCTO[]
+  DIRECCION         DIRECCION?      @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction, map: "FK__PROVEEDOR__id_di__1C873BEC")
+  TIPO_PROVEEDOR    TIPO_PROVEEDOR? @relation(fields: [id_tipo_proveedor], references: [id_tipo_proveedor], onDelete: NoAction, onUpdate: NoAction, map: "FK__PROVEEDOR__id_ti__1D7B6025")
+}
+
+model PUERTO {
+  id_puerto    Int      @id(map: "PK__PUERTO__2D74A982CEA8BBEE") @default(autoincrement())
+  nombre       String?  @db.NVarChar(255)
+  regulaciones String?  @db.Text
+  id_ciudad    Int?
+  ESCALA       ESCALA[]
+  CIUDAD       CIUDAD?  @relation(fields: [id_ciudad], references: [id_ciudad], onDelete: NoAction, onUpdate: NoAction, map: "FK__PUERTO__id_ciuda__6CD828CA")
+  VIAJE        VIAJE[]
+}
+
+model PUNTO_VENTA {
+  id_punto_venta        Int                     @id(map: "PK__PUNTO_VE__06416536E65B1418") @default(autoincrement())
+  nombre                String?                 @db.NVarChar(255)
+  id_crucero            Int?
+  tipo                  String?                 @db.NVarChar(255)
+  MOVIMIENTO_INVENTARIO MOVIMIENTO_INVENTARIO[]
+  CRUCERO               CRUCERO?                @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction, map: "FK__PUNTO_VEN__id_cr__1F63A897")
+}
+
+model RECLAMO_SUGERENCIA {
+  id_registro    Int       @id(map: "PK__RECLAMO___48155C1FB33D8154") @default(autoincrement())
+  tipo           String?   @db.NVarChar(255)
+  id_pasajero    Int?
+  id_empleado    Int?
+  fecha_registro DateTime? @db.DateTime
+  descripcion    String?   @db.Text
+  estado         String?   @db.NVarChar(255)
+  EMPLEADO       EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "FK__RECLAMO_S__id_em__3B0BC30C")
+  PASAJERO       PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__RECLAMO_S__id_pa__3A179ED3")
+}
+
+model REGISTRO_VACUNA {
+  id_registro      Int               @id(map: "PK__REGISTRO__48155C1F2E9BC3EC") @default(autoincrement())
+  id_historial     Int?
+  nombre_vacuna    String?           @db.NVarChar(255)
+  fecha_aplicacion DateTime?         @db.Date
+  HISTORIAL_MEDICO HISTORIAL_MEDICO? @relation(fields: [id_historial], references: [id_historial], onDelete: NoAction, onUpdate: NoAction, map: "FK__REGISTRO___id_hi__28ED12D1")
+}
+
+model RESERVA {
+  id_reserva           Int                    @id(map: "PK__RESERVA__423CBE5D32D1240C") @default(autoincrement())
+  id_cliente           Int?
+  id_viaje             Int?
+  id_agente            Int?
+  fecha_reserva        DateTime?              @db.Date
+  monto_total          Decimal?               @db.Decimal(18, 0)
+  estado_reserva       String?                @db.NVarChar(255)
+  id_tipo_reserva      Int?
+  id_canal             Int?
+  APLICACION_DESCUENTO APLICACION_DESCUENTO[]
+  CANCELACION          CANCELACION[]
+  COMPENSACION         COMPENSACION[]
+  FACTURA              FACTURA[]
+  PAGO_RESERVA         PAGO_RESERVA[]
+  PASAJERO             PASAJERO[]
+  AGENTE_VIAJE         AGENTE_VIAJE?          @relation(fields: [id_agente], references: [id_agente], onDelete: NoAction, onUpdate: NoAction, map: "FK__RESERVA__id_agen__7A3223E8")
+  CANAL_VENTA          CANAL_VENTA?           @relation(fields: [id_canal], references: [id_canal], onDelete: NoAction, onUpdate: NoAction, map: "FK__RESERVA__id_cana__7C1A6C5A")
+  CLIENTE              CLIENTE?               @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "FK__RESERVA__id_clie__7849DB76")
+  TIPO_RESERVA         TIPO_RESERVA?          @relation(fields: [id_tipo_reserva], references: [id_tipo_reserva], onDelete: NoAction, onUpdate: NoAction, map: "FK__RESERVA__id_tipo__7B264821")
+  VIAJE                VIAJE?                 @relation(fields: [id_viaje], references: [id_viaje], onDelete: NoAction, onUpdate: NoAction, map: "FK__RESERVA__id_viaj__793DFFAF")
+  TRASLADO             TRASLADO[]
+}
+
+model ROL {
+  id_rol     Int       @id(map: "PK__ROL__6ABCB5E08B18D87C") @default(autoincrement())
+  nombre_rol String?   @unique(map: "UQ__ROL__673CB435BC5CCC6C") @db.NVarChar(255)
+  permisos   String?   @db.NVarChar(255)
+  USUARIO    USUARIO[]
+}
+
+model TAREA_MANTENIMIENTO {
+  id_tarea                Int            @id(map: "PK__TAREA_MA__C0ECF707FBF58AB6") @default(autoincrement())
+  id_mantenimiento        Int?
+  descripcion             String?        @db.Text
+  responsable             Int?
+  fecha_finalizacion_real DateTime?      @db.Date
+  costo                   Decimal?       @db.Decimal(18, 0)
+  MANTENIMIENTO           MANTENIMIENTO? @relation(fields: [id_mantenimiento], references: [id_mantenimiento], onDelete: NoAction, onUpdate: NoAction, map: "FK__TAREA_MAN__id_ma__36470DEF")
+  EMPLEADO                EMPLEADO?      @relation(fields: [responsable], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "FK__TAREA_MAN__respo__373B3228")
+}
+
+model TICKET {
+  id_ticket        Int       @id(map: "PK__TICKET__48C6F52392EEFACE") @default(autoincrement())
+  id_pasajero      Int?
+  codigo_qr        String?   @unique(map: "UQ__TICKET__75B2E85D6A8FA818") @db.NVarChar(255)
+  fecha_emision    DateTime? @db.Date
+  hora_facturacion DateTime? @db.DateTime
+  PASAJERO         PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "FK__TICKET__id_pasaj__7EF6D905")
+}
+
+model TIPO_ACTIVIDAD {
+  id_tipo_actividad Int         @id(map: "PK__TIPO_ACT__F05554BF535D88BE") @default(autoincrement())
+  nombre            String?     @unique(map: "UQ__TIPO_ACT__72AFBCC64B87EAE9") @db.NVarChar(255)
+  ACTIVIDAD         ACTIVIDAD[]
+}
+
+model TIPO_CRUCERO {
+  id_tipo_crucero Int       @id(map: "PK__TIPO_CRU__86DC197D63850CD2") @default(autoincrement())
+  nombre_tipo     String?   @unique(map: "UQ__TIPO_CRU__0C60C00D10941DBE") @db.NVarChar(255)
+  CRUCERO         CRUCERO[]
+}
+
+model TIPO_DOCUMENTO {
+  id_tipo_documento Int         @id(map: "PK__TIPO_DOC__9F38507C03812BFB") @default(autoincrement())
+  nombre_tipo       String?     @unique(map: "UQ__TIPO_DOC__0C60C00D4F8B2A1D") @db.NVarChar(255)
+  DOCUMENTO         DOCUMENTO[]
+}
+
+model TIPO_FACTURA {
+  id_tipo_factura Int       @id(map: "PK__TIPO_FAC__242C3B3D062E6F5E") @default(autoincrement())
+  nombre          String?   @unique(map: "UQ__TIPO_FAC__72AFBCC6E308C12D") @db.NVarChar(255)
+  FACTURA         FACTURA[]
+}
+
+model TIPO_HABITACION {
+  id_tipo_habitacion Int          @id(map: "PK__TIPO_HAB__6A65108C673A623B") @default(autoincrement())
+  nombre             String?      @unique(map: "UQ__TIPO_HAB__72AFBCC60CC79BD2") @db.NVarChar(255)
+  descripcion        String?      @db.NVarChar(255)
+  capacidad_max      Int?
+  HABITACION         HABITACION[]
+}
+
+model TIPO_PROVEEDOR {
+  id_tipo_proveedor Int         @id(map: "PK__TIPO_PRO__F30B7705E537938E") @default(autoincrement())
+  nombre            String?     @unique(map: "UQ__TIPO_PRO__72AFBCC6D0736C0B") @db.NVarChar(255)
+  PROVEEDOR         PROVEEDOR[]
+}
+
+model TIPO_RESERVA {
+  id_tipo_reserva Int       @id(map: "PK__TIPO_RES__447C7185B8079115") @default(autoincrement())
+  nombre_tipo     String?   @unique(map: "UQ__TIPO_RES__0C60C00D7E8A3A9D") @db.NVarChar(255)
+  RESERVA         RESERVA[]
+}
+
+model TIPO_TRANSACCION {
+  id_tipo_transaccion Int           @id(map: "PK__TIPO_TRA__87B12064EC9FA876") @default(autoincrement())
+  nombre              String?       @unique(map: "UQ__TIPO_TRA__72AFBCC648B17279") @db.NVarChar(255)
+  TRANSACCION         TRANSACCION[]
+}
+
+model TRANSACCION {
+  id_transaccion      Int               @id(map: "PK__TRANSACC__1EDAC0997D492D9C") @default(autoincrement())
+  id_folio            Int?
+  id_tipo_transaccion Int?
+  monto               Decimal?          @db.Decimal(18, 0)
+  descripcion         String?           @db.NVarChar(255)
+  fecha_hora          DateTime?         @db.DateTime
+  COMPENSACION        COMPENSACION[]
+  CONCILIACION        CONCILIACION[]
+  FOLIO_PASAJERO      FOLIO_PASAJERO?   @relation(fields: [id_folio], references: [id_folio], onDelete: NoAction, onUpdate: NoAction, map: "FK__TRANSACCI__id_fo__0D44F85C")
+  TIPO_TRANSACCION    TIPO_TRANSACCION? @relation(fields: [id_tipo_transaccion], references: [id_tipo_transaccion], onDelete: NoAction, onUpdate: NoAction, map: "FK__TRANSACCI__id_ti__0E391C95")
+}
+
+model TRANSFUSION {
+  id_transfusion     Int               @id(map: "PK__TRANSFUS__5372DA19EE9DCC0C") @default(autoincrement())
+  id_historial       Int?
+  tipo_componente    String?           @db.NVarChar(255)
+  fecha_transfusion  DateTime?         @db.DateTime
+  motivo_transfusion String?           @db.Text
+  cod_procedimiento  String?           @db.NVarChar(255)
+  HISTORIAL_MEDICO   HISTORIAL_MEDICO? @relation(fields: [id_historial], references: [id_historial], onDelete: NoAction, onUpdate: NoAction, map: "FK__TRANSFUSI__id_hi__29E1370A")
+}
+
+model TRASLADO {
+  id_traslado     Int       @id(map: "PK__TRASLADO__3E65EDDDAC343018") @default(autoincrement())
+  id_reserva      Int?
+  tipo_transporte String?   @db.NVarChar(255)
+  fecha_hora      DateTime? @db.DateTime
+  costo           Decimal?  @db.Decimal(18, 0)
+  estado          String?   @db.NVarChar(255)
+  RESERVA         RESERVA?  @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "FK__TRASLADO__id_res__0880433F")
+}
+
+model TRATAMIENTO {
+  id_consulta    Int
+  id_medicamento Int
+  dosis          String? @db.NVarChar(255)
+  frecuencia     String? @db.NVarChar(255)
+  duracion       String? @db.NVarChar(255)
+
+  @@id([id_consulta, id_medicamento], map: "PK__TRATAMIE__5D0BD4882B3E2742")
+}
+
+model USUARIO {
+  id_usuario    Int       @id(map: "PK__USUARIO__4E3E04ADCB72BCDC") @default(autoincrement())
+  id_empleado   Int?      @unique(map: "UQ__USUARIO__88B51395D895728D")
+  username      String?   @unique(map: "UQ__USUARIO__F3DBC57208A58FFB") @db.NVarChar(255)
+  password_hash String?   @db.NVarChar(255)
+  id_rol        Int?
+  EMPLEADO      EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "FK__USUARIO__id_empl__15DA3E5D")
+  ROL           ROL?      @relation(fields: [id_rol], references: [id_rol], onDelete: NoAction, onUpdate: NoAction, map: "FK__USUARIO__id_rol__16CE6296")
+}
+
+model VIAJE {
+  id_viaje           Int         @id(map: "PK__VIAJE__29535AC3BEFAEBC2") @default(autoincrement())
+  id_crucero         Int?
+  id_itinerario      Int?
+  fecha_salida_real  DateTime?   @db.Date
+  fecha_llegada_real DateTime?   @db.Date
+  id_puerto_origen   Int?
+  RESERVA            RESERVA[]
+  CRUCERO            CRUCERO?    @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction, map: "FK__VIAJE__id_crucer__73852659")
+  ITINERARIO         ITINERARIO? @relation(fields: [id_itinerario], references: [id_itinerario], onDelete: NoAction, onUpdate: NoAction, map: "FK__VIAJE__id_itiner__74794A92")
+  PUERTO             PUERTO?     @relation(fields: [id_puerto_origen], references: [id_puerto], onDelete: NoAction, onUpdate: NoAction, map: "FK__VIAJE__id_puerto__756D6ECB")
+}
