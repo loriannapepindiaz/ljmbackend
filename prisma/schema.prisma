@@ -1,0 +1,587 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AGENTE_VIAJE {
+  id_agente     Int        @id @default(autoincrement())
+  nombre        String?    @db.VarChar
+  codigo_agente String?    @unique @db.VarChar
+  email         String?    @db.VarChar
+  id_direccion  Int?
+  DIRECCION     DIRECCION? @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction)
+  RESERVA       RESERVA[]
+}
+
+model ANTECEDENTE_FAMILIAR {
+  id_antecedente   Int               @id @default(autoincrement())
+  id_historial     Int?
+  parentesco       String?           @db.VarChar
+  id_diagnostico   Int?
+  estado_familiar  String?           @db.VarChar
+  DIAGNOSTICO      DIAGNOSTICO?      @relation(fields: [id_diagnostico], references: [id_diagnostico], onDelete: NoAction, onUpdate: NoAction)
+  HISTORIAL_MEDICO HISTORIAL_MEDICO? @relation(fields: [id_historial], references: [id_historial], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model APLICACION_DESCUENTO {
+  id_aplicacion    Int        @id @default(autoincrement())
+  id_descuento     Int?
+  id_reserva       Int?
+  fecha_aplicacion DateTime?  @db.Date
+  DESCUENTO        DESCUENTO? @relation(fields: [id_descuento], references: [id_descuento], onDelete: NoAction, onUpdate: NoAction)
+  RESERVA          RESERVA?   @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ASIGNACION_CABINA {
+  id_reserva       Int
+  id_habitacion    Int
+  fecha_asignacion DateTime? @db.Date
+  precio_final     Decimal?  @db.Decimal
+
+  @@id([id_reserva, id_habitacion])
+}
+
+model ASIGNACION_HORARIO {
+  id_asignacion Int       @id @default(autoincrement())
+  id_empleado   Int?
+  id_horario    Int?
+  fecha_inicio  DateTime? @db.Date
+  fecha_fin     DateTime? @db.Date
+  EMPLEADO      EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+  HORARIO       HORARIO?  @relation(fields: [id_horario], references: [id_horario], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ASIGNACION_VIAJE {
+  id_empleado  Int
+  id_viaje     Int
+  rol_viaje    String?   @db.VarChar
+  fecha_inicio DateTime? @db.Date
+
+  @@id([id_empleado, id_viaje])
+}
+
+model CANAL_VENTA {
+  id_canal     Int       @id @default(autoincrement())
+  nombre_canal String?   @unique @db.VarChar
+  RESERVA      RESERVA[]
+}
+
+model CANCELACION {
+  id_cancelacion    Int       @id @default(autoincrement())
+  id_reserva        Int?
+  fecha_cancelacion DateTime? @db.Date
+  motivo            String?
+  monto_reembolsado Decimal?  @db.Decimal
+  RESERVA           RESERVA?  @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model CARGO {
+  id_cargo              Int        @id @default(autoincrement())
+  nombre_cargo          String?    @unique @db.VarChar
+  nivel_responsabilidad String?    @db.VarChar
+  EMPLEADO              EMPLEADO[]
+}
+
+model CERTIFICACION {
+  id_certificacion Int       @id @default(autoincrement())
+  id_empleado      Int?
+  nombre_cert      String?   @db.VarChar
+  fecha_expiracion DateTime? @db.Date
+  EMPLEADO         EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model CIUDAD {
+  id_ciudad Int         @id @default(autoincrement())
+  nombre    String?     @db.VarChar
+  id_pais   Int?
+  PAIS      PAIS?       @relation(fields: [id_pais], references: [id_pais], onDelete: NoAction, onUpdate: NoAction)
+  DIRECCION DIRECCION[]
+  PUERTO    PUERTO[]
+}
+
+model CLIENTE {
+  id_cliente   Int        @id @default(autoincrement())
+  nombre       String?    @db.VarChar
+  apellido     String?    @db.VarChar
+  email        String?    @unique @db.VarChar
+  telefono     String?    @db.VarChar
+  nacionalidad String?    @db.VarChar
+  fecha_nac    DateTime?  @db.Date
+  id_direccion Int?
+  DIRECCION    DIRECCION? @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction)
+  PASAJERO     PASAJERO[]
+  RESERVA      RESERVA[]
+}
+
+model COMPENSACION {
+  id_compensacion Int       @id @default(autoincrement())
+  id_reserva      Int?
+  id_transaccion  Int?
+  tipo            String?   @db.VarChar
+  monto           Decimal?  @db.Decimal
+  motivo          String?
+  fecha_registro  DateTime? @db.Date
+  RESERVA         RESERVA?  @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model CRUCERO {
+  id_crucero              Int             @id @default(autoincrement())
+  nombre                  String?         @db.VarChar
+  registro_maritimo       String?         @unique @db.VarChar
+  capacidad_max_pasajeros Int?
+  id_tipo_crucero         Int?
+  TIPO_CRUCERO            TIPO_CRUCERO?   @relation(fields: [id_tipo_crucero], references: [id_tipo_crucero], onDelete: NoAction, onUpdate: NoAction)
+  CUBIERTA                CUBIERTA[]
+  MANTENIMIENTO           MANTENIMIENTO[]
+  PUNTO_VENTA             PUNTO_VENTA[]
+  VIAJE                   VIAJE[]
+}
+
+model CUBIERTA {
+  id_cubierta     Int          @id @default(autoincrement())
+  id_crucero      Int?
+  numero_cubierta Int?
+  descripcion     String?      @db.VarChar
+  CRUCERO         CRUCERO?     @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
+  HABITACION      HABITACION[]
+}
+
+model DEPARTAMENTO {
+  id_departamento Int        @id @default(autoincrement())
+  nombre          String?    @unique @db.VarChar
+  EMPLEADO        EMPLEADO[]
+}
+
+model DESCUENTO {
+  id_descuento         Int                    @id @default(autoincrement())
+  codigo               String?                @unique @db.VarChar
+  nombre               String?                @db.VarChar
+  porcentaje           Decimal?               @db.Decimal
+  monto_fijo           Decimal?               @db.Decimal
+  APLICACION_DESCUENTO APLICACION_DESCUENTO[]
+}
+
+model DETALLE_FACTURA {
+  id_factura        Int
+  id_transaccion    Int
+  monto_linea       Decimal? @db.Decimal
+  descripcion_cargo String?  @db.VarChar
+
+  @@id([id_factura, id_transaccion])
+}
+
+model DETALLE_ORDEN_COMPRA {
+  id_orden       Int
+  id_producto    Int
+  cantidad       Int?
+  costo_unitario Decimal? @db.Decimal
+
+  @@id([id_orden, id_producto])
+}
+
+model DIAGNOSTICO {
+  id_diagnostico       Int                    @id @default(autoincrement())
+  nombre               String?                @unique @db.VarChar
+  codigo_cie           String?                @db.VarChar
+  ANTECEDENTE_FAMILIAR ANTECEDENTE_FAMILIAR[]
+}
+
+model DIRECCION {
+  id_direccion  Int            @id @default(autoincrement())
+  calle         String?        @db.VarChar
+  numero        String?        @db.VarChar
+  barrio        String?        @db.VarChar
+  provincia     String?        @db.VarChar
+  codigo_postal String?        @db.VarChar
+  id_ciudad     Int?
+  AGENTE_VIAJE  AGENTE_VIAJE[]
+  CLIENTE       CLIENTE[]
+  CIUDAD        CIUDAD?        @relation(fields: [id_ciudad], references: [id_ciudad], onDelete: NoAction, onUpdate: NoAction)
+  PROVEEDOR     PROVEEDOR[]
+}
+
+model DOCUMENTO {
+  id_documento      Int             @id @default(autoincrement())
+  id_pasajero       Int?
+  id_tipo_documento Int?
+  numero_documento  String?         @db.VarChar
+  fecha_expedicion  DateTime?       @db.Date
+  fecha_expiracion  DateTime?       @db.Date
+  PASAJERO          PASAJERO?       @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+  TIPO_DOCUMENTO    TIPO_DOCUMENTO? @relation(fields: [id_tipo_documento], references: [id_tipo_documento], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model EMPLEADO {
+  id_empleado         Int                   @id @default(autoincrement())
+  nombre              String?               @db.VarChar
+  apellido            String?               @db.VarChar
+  fecha_nac           DateTime?             @db.Date
+  id_cargo            Int?
+  id_departamento     Int?
+  fecha_contrato      DateTime?             @db.Date
+  ASIGNACION_HORARIO  ASIGNACION_HORARIO[]
+  CERTIFICACION       CERTIFICACION[]
+  CARGO               CARGO?                @relation(fields: [id_cargo], references: [id_cargo], onDelete: NoAction, onUpdate: NoAction)
+  DEPARTAMENTO        DEPARTAMENTO?         @relation(fields: [id_departamento], references: [id_departamento], onDelete: NoAction, onUpdate: NoAction)
+  HISTORIAL_SALARIO   HISTORIAL_SALARIO[]
+  MEDICO              MEDICO?
+  TAREA_MANTENIMIENTO TAREA_MANTENIMIENTO[]
+  USUARIO             USUARIO?
+}
+
+model EQUIPAJE {
+  id_equipaje       Int       @id @default(autoincrement())
+  id_pasajero       Int?
+  numero_etiqueta   String?   @unique @db.VarChar
+  peso              Decimal?  @db.Decimal
+  estado            String?   @db.VarChar
+  id_escala_entrega Int?
+  PASAJERO          PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model EXCURSION {
+  id_excursion Int       @id @default(autoincrement())
+  id_escala    Int?
+  nombre       String?   @db.VarChar
+  duracion     DateTime? @db.Time(6)
+  costo        Decimal?  @db.Decimal
+}
+
+model FACTURA {
+  id_factura      Int           @id @default(autoincrement())
+  id_reserva      Int?
+  id_tipo_factura Int?
+  fecha_emision   DateTime?     @db.Date
+  monto_total     Decimal?      @db.Decimal
+  RESERVA         RESERVA?      @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
+  TIPO_FACTURA    TIPO_FACTURA? @relation(fields: [id_tipo_factura], references: [id_tipo_factura], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model FOLIO_PASAJERO {
+  id_folio       Int       @id @default(autoincrement())
+  id_pasajero    Int?      @unique
+  saldo_actual   Decimal?  @default(0) @db.Decimal
+  limite_credito Decimal?  @db.Decimal
+  PASAJERO       PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model HABITACION {
+  id_habitacion      Int              @id @default(autoincrement())
+  id_cubierta        Int?
+  numero_cabina      String?          @db.VarChar
+  id_tipo_habitacion Int?
+  estado             String?          @db.VarChar
+  CUBIERTA           CUBIERTA?        @relation(fields: [id_cubierta], references: [id_cubierta], onDelete: NoAction, onUpdate: NoAction)
+  TIPO_HABITACION    TIPO_HABITACION? @relation(fields: [id_tipo_habitacion], references: [id_tipo_habitacion], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model HABITO_TOXICO {
+  id_habito   Int     @id @default(autoincrement())
+  nombre      String? @db.VarChar
+  descripcion String?
+}
+
+model HISTORIAL_MEDICO {
+  id_historial            Int                    @id @default(autoincrement())
+  id_pasajero             Int?                   @unique
+  antecedentes_relevantes String?
+  alergias                String?
+  grupo_sanguineo         String?                @db.VarChar
+  ANTECEDENTE_FAMILIAR    ANTECEDENTE_FAMILIAR[]
+  PASAJERO                PASAJERO?              @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+  REGISTRO_VACUNA         REGISTRO_VACUNA[]
+}
+
+model HISTORIAL_SALARIO {
+  id_historial     Int             @id @default(autoincrement())
+  id_empleado      Int?
+  salario_anterior Decimal?        @db.Decimal
+  salario_nuevo    Decimal?        @db.Decimal
+  fecha_cambio     DateTime?       @db.Date
+  id_motivo        Int?
+  EMPLEADO         EMPLEADO?       @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+  MOTIVO_SALARIO   MOTIVO_SALARIO? @relation(fields: [id_motivo], references: [id_motivo], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model HORARIO {
+  id_horario         Int                  @id @default(autoincrement())
+  nombre             String?              @db.VarChar
+  hora_inicio        DateTime?            @db.Time(6)
+  hora_fin           DateTime?            @db.Time(6)
+  ASIGNACION_HORARIO ASIGNACION_HORARIO[]
+}
+
+model INVENTARIO {
+  id_producto    Int
+  id_punto_venta Int
+  stock_actual   Int?
+  stock_minimo   Int?
+
+  @@id([id_producto, id_punto_venta])
+}
+
+model ITINERARIO {
+  id_itinerario Int     @id @default(autoincrement())
+  nombre_ruta   String? @db.VarChar
+  descripcion   String?
+  VIAJE         VIAJE[]
+}
+
+model MANTENIMIENTO {
+  id_mantenimiento    Int                   @id @default(autoincrement())
+  id_crucero          Int?
+  fecha_inicio        DateTime?             @db.Date
+  fecha_fin_estimada  DateTime?             @db.Date
+  estado              String?               @db.VarChar
+  tipo_mantenimiento  String?               @db.VarChar
+  CRUCERO             CRUCERO?              @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
+  TAREA_MANTENIMIENTO TAREA_MANTENIMIENTO[]
+}
+
+model MAYORDOMO_HABITACION {
+  id_empleado   Int
+  id_habitacion Int
+  id_viaje      Int
+
+  @@id([id_empleado, id_habitacion, id_viaje])
+}
+
+model MEDICAMENTO {
+  id_medicamento     Int     @id @default(autoincrement())
+  nombre_comercial   String? @db.VarChar
+  ingrediente_activo String? @db.VarChar
+}
+
+model MEDICO {
+  id_medico       Int       @id @default(autoincrement())
+  id_empleado     Int?      @unique
+  licencia_medica String?   @db.VarChar
+  EMPLEADO        EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model METODO_PAGO {
+  id_metodo     Int     @id @default(autoincrement())
+  nombre_metodo String? @unique @db.VarChar
+}
+
+model MONEDA {
+  id_moneda Int     @id @default(autoincrement())
+  codigo    String? @unique @db.VarChar
+  nombre    String? @db.VarChar
+}
+
+model MOTIVO_SALARIO {
+  id_motivo         Int                 @id @default(autoincrement())
+  descripcion       String?             @db.VarChar
+  HISTORIAL_SALARIO HISTORIAL_SALARIO[]
+}
+
+model ORDEN_COMPRA {
+  id_orden          Int        @id @default(autoincrement())
+  id_proveedor      Int?
+  fecha_orden       DateTime?  @db.Date
+  id_escala_entrega Int?
+  estado            String?    @db.VarChar
+  PROVEEDOR         PROVEEDOR? @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model PAIS {
+  id_pais    Int      @id @default(autoincrement())
+  nombre     String?  @db.VarChar
+  codigo_iso String?  @unique @db.VarChar
+  CIUDAD     CIUDAD[]
+}
+
+model PASAJERO {
+  id_pasajero           Int               @id @default(autoincrement())
+  id_reserva            Int?
+  nombre                String?           @db.VarChar
+  apellido              String?           @db.VarChar
+  relacion_titular      String?           @db.VarChar
+  id_cliente_referencia Int?
+  DOCUMENTO             DOCUMENTO[]
+  EQUIPAJE              EQUIPAJE[]
+  FOLIO_PASAJERO        FOLIO_PASAJERO?
+  HISTORIAL_MEDICO      HISTORIAL_MEDICO?
+  CLIENTE               CLIENTE?          @relation(fields: [id_cliente_referencia], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)
+  RESERVA               RESERVA?          @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model PASAJERO_HABITO_TOXICO {
+  id_historial Int
+  id_habito    Int
+
+  @@id([id_historial, id_habito])
+}
+
+model PRODUCTO {
+  id_producto   Int        @id @default(autoincrement())
+  nombre        String?    @db.VarChar
+  descripcion   String?
+  id_proveedor  Int?
+  precio_compra Decimal?   @db.Decimal
+  precio_venta  Decimal?   @db.Decimal
+  PROVEEDOR     PROVEEDOR? @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model PROVEEDOR {
+  id_proveedor      Int             @id @default(autoincrement())
+  nombre            String?         @db.VarChar
+  contacto          String?         @db.VarChar
+  id_direccion      Int?
+  id_tipo_proveedor Int?
+  ORDEN_COMPRA      ORDEN_COMPRA[]
+  PRODUCTO          PRODUCTO[]
+  DIRECCION         DIRECCION?      @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction)
+  TIPO_PROVEEDOR    TIPO_PROVEEDOR? @relation(fields: [id_tipo_proveedor], references: [id_tipo_proveedor], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model PUERTO {
+  id_puerto    Int     @id @default(autoincrement())
+  nombre       String? @db.VarChar
+  regulaciones String?
+  id_ciudad    Int?
+  CIUDAD       CIUDAD? @relation(fields: [id_ciudad], references: [id_ciudad], onDelete: NoAction, onUpdate: NoAction)
+  VIAJE        VIAJE[]
+}
+
+model PUNTO_VENTA {
+  id_punto_venta Int      @id @default(autoincrement())
+  nombre         String?  @db.VarChar
+  id_crucero     Int?
+  tipo           String?  @db.VarChar
+  CRUCERO        CRUCERO? @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model REGISTRO_VACUNA {
+  id_registro      Int               @id @default(autoincrement())
+  id_historial     Int?
+  nombre_vacuna    String?           @db.VarChar
+  fecha_aplicacion DateTime?         @db.Date
+  HISTORIAL_MEDICO HISTORIAL_MEDICO? @relation(fields: [id_historial], references: [id_historial], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model RESERVA {
+  id_reserva           Int                    @id @default(autoincrement())
+  id_cliente           Int?
+  id_viaje             Int?
+  id_agente            Int?
+  fecha_reserva        DateTime?              @db.Date
+  monto_total          Decimal?               @db.Decimal
+  estado_reserva       String?                @db.VarChar
+  id_tipo_reserva      Int?
+  id_canal             Int?
+  APLICACION_DESCUENTO APLICACION_DESCUENTO[]
+  CANCELACION          CANCELACION[]
+  COMPENSACION         COMPENSACION[]
+  FACTURA              FACTURA[]
+  PASAJERO             PASAJERO[]
+  AGENTE_VIAJE         AGENTE_VIAJE?          @relation(fields: [id_agente], references: [id_agente], onDelete: NoAction, onUpdate: NoAction)
+  CANAL_VENTA          CANAL_VENTA?           @relation(fields: [id_canal], references: [id_canal], onDelete: NoAction, onUpdate: NoAction)
+  CLIENTE              CLIENTE?               @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)
+  TIPO_RESERVA         TIPO_RESERVA?          @relation(fields: [id_tipo_reserva], references: [id_tipo_reserva], onDelete: NoAction, onUpdate: NoAction)
+  VIAJE                VIAJE?                 @relation(fields: [id_viaje], references: [id_viaje], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ROL {
+  id_rol     Int       @id @default(autoincrement())
+  nombre_rol String?   @unique @db.VarChar
+  permisos   Json?
+  USUARIO    USUARIO[]
+}
+
+model TAREA_MANTENIMIENTO {
+  id_tarea                Int            @id @default(autoincrement())
+  id_mantenimiento        Int?
+  descripcion             String?
+  responsable             Int?
+  fecha_finalizacion_real DateTime?      @db.Date
+  costo                   Decimal?       @db.Decimal
+  MANTENIMIENTO           MANTENIMIENTO? @relation(fields: [id_mantenimiento], references: [id_mantenimiento], onDelete: NoAction, onUpdate: NoAction)
+  EMPLEADO                EMPLEADO?      @relation(fields: [responsable], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model TIPO_ACTIVIDAD {
+  id_tipo_actividad Int     @id @default(autoincrement())
+  nombre            String? @unique @db.VarChar
+}
+
+model TIPO_CRUCERO {
+  id_tipo_crucero Int       @id @default(autoincrement())
+  nombre_tipo     String?   @unique @db.VarChar
+  CRUCERO         CRUCERO[]
+}
+
+model TIPO_DOCUMENTO {
+  id_tipo_documento Int         @id @default(autoincrement())
+  nombre_tipo       String?     @unique @db.VarChar
+  DOCUMENTO         DOCUMENTO[]
+}
+
+model TIPO_FACTURA {
+  id_tipo_factura Int       @id @default(autoincrement())
+  nombre          String?   @unique @db.VarChar
+  FACTURA         FACTURA[]
+}
+
+model TIPO_HABITACION {
+  id_tipo_habitacion Int          @id @default(autoincrement())
+  nombre             String?      @unique @db.VarChar
+  descripcion        String?      @db.VarChar
+  capacidad_max      Int?
+  HABITACION         HABITACION[]
+}
+
+model TIPO_PROVEEDOR {
+  id_tipo_proveedor Int         @id @default(autoincrement())
+  nombre            String?     @unique @db.VarChar
+  PROVEEDOR         PROVEEDOR[]
+}
+
+model TIPO_RESERVA {
+  id_tipo_reserva Int       @id @default(autoincrement())
+  nombre_tipo     String?   @unique @db.VarChar
+  RESERVA         RESERVA[]
+}
+
+model TIPO_TRANSACCION {
+  id_tipo_transaccion Int     @id @default(autoincrement())
+  nombre              String? @unique @db.VarChar
+}
+
+model TRATAMIENTO {
+  id_consulta    Int
+  id_medicamento Int
+  dosis          String? @db.VarChar
+  frecuencia     String? @db.VarChar
+  duracion       String? @db.VarChar
+
+  @@id([id_consulta, id_medicamento])
+}
+
+model USUARIO {
+  id_usuario    Int       @id @default(autoincrement())
+  id_empleado   Int?      @unique
+  username      String?   @unique @db.VarChar
+  password_hash String?   @db.VarChar
+  id_rol        Int?
+  EMPLEADO      EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+  ROL           ROL?      @relation(fields: [id_rol], references: [id_rol], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model VIAJE {
+  id_viaje           Int         @id @default(autoincrement())
+  id_crucero         Int?
+  id_itinerario      Int?
+  fecha_salida_real  DateTime?   @db.Date
+  fecha_llegada_real DateTime?   @db.Date
+  id_puerto_origen   Int?
+  RESERVA            RESERVA[]
+  CRUCERO            CRUCERO?    @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
+  ITINERARIO         ITINERARIO? @relation(fields: [id_itinerario], references: [id_itinerario], onDelete: NoAction, onUpdate: NoAction)
+  PUERTO             PUERTO?     @relation(fields: [id_puerto_origen], references: [id_puerto], onDelete: NoAction, onUpdate: NoAction)
+}
