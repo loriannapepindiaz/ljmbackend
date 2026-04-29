@@ -1,18 +1,28 @@
 import express from "express";
 import cors from "cors";
+import { env } from "./src/config/env.js";
 import prisma from "./prismaClient.js";
+import apiRoutes from "./src/routes/index.js";
+import { errorHandler, notFoundHandler } from "./src/middlewares/errorHandler.js";
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: env.frontendUrl,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.send("Backend funcionando 🔥");
+app.get("/", (_req, res) => {
+  res.json({
+    ok: true,
+    message: "LJM Sealine API funcionando",
+  });
 });
 
-// 🔥 PRUEBA REAL CON SUPABASE
-app.get("/test-db", async (req, res) => {
+app.get("/test-db", async (_req, res) => {
   try {
     const result = await prisma.$queryRaw`SELECT NOW()`;
     res.json({ ok: true, result });
@@ -22,6 +32,10 @@ app.get("/test-db", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Servidor corriendo en http://localhost:3000");
+app.use("/api", apiRoutes);
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+app.listen(env.port, () => {
+  console.log(`Servidor corriendo en http://localhost:${env.port}`);
 });
