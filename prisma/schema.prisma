@@ -19,9 +19,9 @@ model AGENTE_VIAJE {
 
 model ANTECEDENTE_FAMILIAR {
   id_antecedente   Int               @id @default(autoincrement())
-  id_historial     Int?
+  id_historial     BigInt?
   parentesco       String?           @db.VarChar
-  id_diagnostico   Int?
+  id_diagnostico   BigInt?
   estado_familiar  String?           @db.VarChar
   DIAGNOSTICO      DIAGNOSTICO?      @relation(fields: [id_diagnostico], references: [id_diagnostico], onDelete: NoAction, onUpdate: NoAction)
   HISTORIAL_MEDICO HISTORIAL_MEDICO? @relation(fields: [id_historial], references: [id_historial], onDelete: NoAction, onUpdate: NoAction)
@@ -30,24 +30,29 @@ model ANTECEDENTE_FAMILIAR {
 model APLICACION_DESCUENTO {
   id_aplicacion    Int        @id @default(autoincrement())
   id_descuento     Int?
-  id_reserva       Int?
+  id_reserva       BigInt?
   fecha_aplicacion DateTime?  @db.Date
   DESCUENTO        DESCUENTO? @relation(fields: [id_descuento], references: [id_descuento], onDelete: NoAction, onUpdate: NoAction)
   RESERVA          RESERVA?   @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model ASIGNACION_CABINA {
-  id_reserva       Int
-  id_habitacion    Int
-  fecha_asignacion DateTime? @db.Date
-  precio_final     Decimal?  @db.Decimal
+  id_reserva        BigInt
+  id_habitacion     Int
+  fecha_asignacion  DateTime?  @db.Date
+  precio_final      Decimal?   @db.Decimal
+  fecha_hasta       DateTime?  @db.Date
+  estado_asignacion String     @default("activa") @db.VarChar(20)
+  HABITACION        HABITACION @relation(fields: [id_habitacion], references: [id_habitacion], onDelete: NoAction, onUpdate: NoAction, map: "fk_asig_cab_habitacion")
+  RESERVA           RESERVA    @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "fk_asig_cab_reserva")
 
   @@id([id_reserva, id_habitacion])
 }
 
 model ASIGNACION_HORARIO {
   id_asignacion Int       @id @default(autoincrement())
-  id_empleado   Int?
+  id_empleado   BigInt?
   id_horario    Int?
   fecha_inicio  DateTime? @db.Date
   fecha_fin     DateTime? @db.Date
@@ -56,10 +61,12 @@ model ASIGNACION_HORARIO {
 }
 
 model ASIGNACION_VIAJE {
-  id_empleado  Int
+  id_empleado  BigInt
   id_viaje     Int
   rol_viaje    String?   @db.VarChar
   fecha_inicio DateTime? @db.Date
+  EMPLEADO     EMPLEADO  @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "fk_asig_viaje_empleado")
+  VIAJE        VIAJE     @relation(fields: [id_viaje], references: [id_viaje], onDelete: NoAction, onUpdate: NoAction, map: "fk_asig_viaje_viaje")
 
   @@id([id_empleado, id_viaje])
 }
@@ -70,12 +77,15 @@ model CANAL_VENTA {
   RESERVA      RESERVA[]
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model CANCELACION {
   id_cancelacion    Int       @id @default(autoincrement())
-  id_reserva        Int?
-  fecha_cancelacion DateTime? @db.Date
+  id_reserva        BigInt?
+  fecha_cancelacion DateTime? @db.Timestamp(6)
   motivo            String?
-  monto_reembolsado Decimal?  @db.Decimal
+  monto_reembolsado Decimal?  @db.Decimal(12, 2)
+  penalidad_monto   Decimal   @default(0) @db.Decimal(12, 2)
+  estado_reembolso  String    @default("pendiente") @db.VarChar(20)
   RESERVA           RESERVA?  @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
 }
 
@@ -86,12 +96,17 @@ model CARGO {
   EMPLEADO              EMPLEADO[]
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model CERTIFICACION {
-  id_certificacion Int       @id @default(autoincrement())
-  id_empleado      Int?
-  nombre_cert      String?   @db.VarChar
-  fecha_expiracion DateTime? @db.Date
-  EMPLEADO         EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+  id_certificacion   Int       @id @default(autoincrement())
+  id_empleado        BigInt?
+  nombre_cert        String?   @db.VarChar
+  fecha_expiracion   DateTime? @db.Date
+  entidad_emisora    String?   @db.VarChar(120)
+  numero_certificado String?   @db.VarChar(60)
+  fecha_emision      DateTime? @db.Date
+  archivo_url        String?
+  EMPLEADO           EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model CIUDAD {
@@ -103,42 +118,75 @@ model CIUDAD {
   PUERTO    PUERTO[]
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model CLIENTE {
-  id_cliente   Int        @id @default(autoincrement())
-  nombre       String?    @db.VarChar
-  apellido     String?    @db.VarChar
-  email        String?    @unique @db.VarChar
-  telefono     String?    @db.VarChar
-  nacionalidad String?    @db.VarChar
-  fecha_nac    DateTime?  @db.Date
-  id_direccion Int?
-  DIRECCION    DIRECCION? @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction)
-  PASAJERO     PASAJERO[]
-  RESERVA      RESERVA[]
+  id_cliente              Int                       @id @default(autoincrement())
+  nombre                  String?                   @db.VarChar
+  apellido                String?                   @db.VarChar
+  email                   String?                   @unique @db.VarChar
+  telefono                String?                   @db.VarChar
+  nacionalidad            String?                   @db.VarChar
+  fecha_nac               DateTime?                 @db.Date
+  id_direccion            Int?
+  member_code             String?                   @unique @db.VarChar(20)
+  loyalty_tier            String                    @default("Explorer") @db.VarChar(20)
+  loyalty_progress_pct    Decimal                   @default(0) @db.Decimal(5, 2)
+  noches_para_sig_nivel   Int                       @default(0)
+  avatar_url              String?
+  created_at              DateTime                  @default(now()) @db.Timestamp(6)
+  updated_at              DateTime                  @default(now()) @db.Timestamp(6)
+  loyalty_tier_label      String?                   @default(dbgenerated("\nCASE loyalty_tier\n    WHEN 'Explorer'::text THEN 'Plata'::character varying\n    WHEN 'Voyager'::text THEN 'Oro'::character varying\n    WHEN 'Admiral'::text THEN 'Élite Platino'::character varying\n    WHEN 'Commodore'::text THEN 'Diamante'::character varying\n    ELSE loyalty_tier\nEND")) @db.VarChar(30)
+  DIRECCION               DIRECCION?                @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction)
+  PASAJERO                PASAJERO[]
+  RESERVA                 RESERVA[]
+  USUARIO                 USUARIO[]
+  cliente_preferencia     cliente_preferencia[]
+  newsletter_suscriptores newsletter_suscriptores[]
+  testimonios             testimonios[]
 }
 
 model COMPENSACION {
   id_compensacion Int       @id @default(autoincrement())
-  id_reserva      Int?
+  id_reserva      BigInt?
   id_transaccion  Int?
   tipo            String?   @db.VarChar
-  monto           Decimal?  @db.Decimal
+  monto           Decimal?  @db.Decimal(12, 2)
   motivo          String?
   fecha_registro  DateTime? @db.Date
   RESERVA         RESERVA?  @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model CRUCERO {
-  id_crucero              Int             @id @default(autoincrement())
-  nombre                  String?         @db.VarChar
-  registro_maritimo       String?         @unique @db.VarChar
+  id_crucero              Int                @id @default(autoincrement())
+  nombre                  String?            @db.VarChar
+  registro_maritimo       String?            @unique @db.VarChar
   capacidad_max_pasajeros Int?
   id_tipo_crucero         Int?
-  TIPO_CRUCERO            TIPO_CRUCERO?   @relation(fields: [id_tipo_crucero], references: [id_tipo_crucero], onDelete: NoAction, onUpdate: NoAction)
+  descripcion             String?
+  activo                  Boolean            @default(true)
+  ambiente                String?            @db.VarChar(30)
+  anio_fabricacion        Int?               @db.SmallInt
+  velocidad_nudos         Decimal?           @db.Decimal(5, 2)
+  eslora_metros           Decimal?           @db.Decimal(7, 2)
+  tonelaje                Decimal?           @db.Decimal(12, 2)
+  video_url               String?
+  imagen_portada_url      String?
+  capacidad_tripulacion   Int?
+  numero_cubiertas        Int?               @db.SmallInt
+  bandera                 String?            @db.VarChar(60)
+  TIPO_CRUCERO            TIPO_CRUCERO?      @relation(fields: [id_tipo_crucero], references: [id_tipo_crucero], onDelete: NoAction, onUpdate: NoAction)
   CUBIERTA                CUBIERTA[]
   MANTENIMIENTO           MANTENIMIENTO[]
   PUNTO_VENTA             PUNTO_VENTA[]
   VIAJE                   VIAJE[]
+  catering                catering[]
+  farmacia                farmacia[]
+  imagenes_crucero        imagenes_crucero[]
+
+  @@index([activo, anio_fabricacion], map: "idx_crucero_activo")
 }
 
 model CUBIERTA {
@@ -146,8 +194,11 @@ model CUBIERTA {
   id_crucero      Int?
   numero_cubierta Int?
   descripcion     String?      @db.VarChar
+  imagen_url      String?
+  plano_url       String?
   CRUCERO         CRUCERO?     @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
   HABITACION      HABITACION[]
+  catering        catering[]
 }
 
 model DEPARTAMENTO {
@@ -170,24 +221,30 @@ model DETALLE_FACTURA {
   id_transaccion    Int
   monto_linea       Decimal? @db.Decimal
   descripcion_cargo String?  @db.VarChar
+  FACTURA           FACTURA  @relation(fields: [id_factura], references: [id_factura], onDelete: NoAction, onUpdate: NoAction, map: "fk_det_factura_factura")
 
   @@id([id_factura, id_transaccion])
 }
 
 model DETALLE_ORDEN_COMPRA {
   id_orden       Int
-  id_producto    Int
+  id_producto    BigInt
   cantidad       Int?
-  costo_unitario Decimal? @db.Decimal
+  costo_unitario Decimal?     @db.Decimal
+  ORDEN_COMPRA   ORDEN_COMPRA @relation(fields: [id_orden], references: [id_orden], onDelete: NoAction, onUpdate: NoAction, map: "fk_det_orden_orden")
+  PRODUCTO       PRODUCTO     @relation(fields: [id_producto], references: [id_producto], onDelete: NoAction, onUpdate: NoAction, map: "fk_det_orden_producto")
 
   @@id([id_orden, id_producto])
 }
 
 model DIAGNOSTICO {
-  id_diagnostico       Int                    @id @default(autoincrement())
+  id_diagnostico       BigInt                 @id @default(autoincrement())
   nombre               String?                @unique @db.VarChar
   codigo_cie           String?                @db.VarChar
+  id_tipo_diagnostico  BigInt?
   ANTECEDENTE_FAMILIAR ANTECEDENTE_FAMILIAR[]
+  tipo_diagnostico     tipo_diagnostico?      @relation(fields: [id_tipo_diagnostico], references: [id_tipo_diagnostico], onDelete: NoAction, onUpdate: NoAction)
+  consulta             consulta[]
 }
 
 model DIRECCION {
@@ -206,99 +263,146 @@ model DIRECCION {
 
 model DOCUMENTO {
   id_documento      Int             @id @default(autoincrement())
-  id_pasajero       Int?
+  id_pasajero       BigInt?
   id_tipo_documento Int?
   numero_documento  String?         @db.VarChar
   fecha_expedicion  DateTime?       @db.Date
   fecha_expiracion  DateTime?       @db.Date
+  archivo_url       String?
+  validado          Boolean         @default(false)
   PASAJERO          PASAJERO?       @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
   TIPO_DOCUMENTO    TIPO_DOCUMENTO? @relation(fields: [id_tipo_documento], references: [id_tipo_documento], onDelete: NoAction, onUpdate: NoAction)
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model EMPLEADO {
-  id_empleado         Int                   @id @default(autoincrement())
-  nombre              String?               @db.VarChar
-  apellido            String?               @db.VarChar
-  fecha_nac           DateTime?             @db.Date
-  id_cargo            Int?
-  id_departamento     Int?
-  fecha_contrato      DateTime?             @db.Date
-  ASIGNACION_HORARIO  ASIGNACION_HORARIO[]
-  CERTIFICACION       CERTIFICACION[]
-  CARGO               CARGO?                @relation(fields: [id_cargo], references: [id_cargo], onDelete: NoAction, onUpdate: NoAction)
-  DEPARTAMENTO        DEPARTAMENTO?         @relation(fields: [id_departamento], references: [id_departamento], onDelete: NoAction, onUpdate: NoAction)
-  HISTORIAL_SALARIO   HISTORIAL_SALARIO[]
-  MEDICO              MEDICO?
-  TAREA_MANTENIMIENTO TAREA_MANTENIMIENTO[]
-  USUARIO             USUARIO?
+  id_empleado                                                    BigInt                  @id @default(autoincrement())
+  nombre                                                         String?                 @db.VarChar
+  apellido                                                       String?                 @db.VarChar
+  fecha_nac                                                      DateTime?               @db.Date
+  id_cargo                                                       Int?
+  id_departamento                                                Int?
+  fecha_contrato                                                 DateTime?               @db.Date
+  estado_empleado                                                String                  @default("activo") @db.VarChar(20)
+  foto_url                                                       String?
+  nacionalidad                                                   String?                 @db.VarChar(60)
+  numero_identificacion                                          String?                 @db.VarChar(40)
+  telefono                                                       String?                 @db.VarChar(20)
+  contacto_emergencia                                            Json?
+  tipo_contrato                                                  String?                 @db.VarChar(30)
+  turno_rotacion                                                 String?                 @db.VarChar(60)
+  puerto_base_id                                                 BigInt?
+  seguro_medico                                                  String?                 @db.VarChar(120)
+  salario_base                                                   Decimal?                @db.Decimal(12, 2)
+  email                                                          String?                 @db.VarChar(120)
+  ASIGNACION_HORARIO                                             ASIGNACION_HORARIO[]
+  ASIGNACION_VIAJE                                               ASIGNACION_VIAJE[]
+  CERTIFICACION                                                  CERTIFICACION[]
+  CARGO                                                          CARGO?                  @relation(fields: [id_cargo], references: [id_cargo], onDelete: NoAction, onUpdate: NoAction)
+  DEPARTAMENTO                                                   DEPARTAMENTO?           @relation(fields: [id_departamento], references: [id_departamento], onDelete: NoAction, onUpdate: NoAction)
+  PUERTO                                                         PUERTO?                 @relation(fields: [puerto_base_id], references: [id_puerto], onDelete: NoAction, onUpdate: NoAction)
+  HISTORIAL_SALARIO                                              HISTORIAL_SALARIO[]
+  MAYORDOMO_HABITACION                                           MAYORDOMO_HABITACION[]
+  MEDICO                                                         MEDICO?
+  TAREA_MANTENIMIENTO                                            TAREA_MANTENIMIENTO[]
+  USUARIO                                                        USUARIO?
+  auditoria                                                      auditoria[]
+  checkout                                                       checkout[]
+  conciliacion                                                   conciliacion[]
+  consulta                                                       consulta[]
+  emergencia                                                     emergencia[]
+  movimiento_inventario                                          movimiento_inventario[]
+  reclamo_sugerencia_reclamo_sugerencia_id_empleadoToEMPLEADO    reclamo_sugerencia[]    @relation("reclamo_sugerencia_id_empleadoToEMPLEADO")
+  reclamo_sugerencia_reclamo_sugerencia_id_responsableToEMPLEADO reclamo_sugerencia[]    @relation("reclamo_sugerencia_id_responsableToEMPLEADO")
+  transaccion                                                    transaccion[]
+
+  @@index([estado_empleado], map: "idx_empleado_estado")
+  @@index([puerto_base_id], map: "idx_empleado_puerto_base")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model EQUIPAJE {
   id_equipaje       Int       @id @default(autoincrement())
-  id_pasajero       Int?
+  id_pasajero       BigInt?
   numero_etiqueta   String?   @unique @db.VarChar
-  peso              Decimal?  @db.Decimal
+  peso              Decimal?  @db.Decimal(6, 2)
   estado            String?   @db.VarChar
   id_escala_entrega Int?
   PASAJERO          PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model EXCURSION {
-  id_excursion Int       @id @default(autoincrement())
-  id_escala    Int?
-  nombre       String?   @db.VarChar
-  duracion     DateTime? @db.Time(6)
-  costo        Decimal?  @db.Decimal
+  id_excursion          BigInt                  @id @default(autoincrement())
+  id_escala             BigInt?
+  nombre                String?                 @db.VarChar
+  duracion              Int?
+  costo                 Decimal?                @db.Decimal(10, 2)
+  escala                escala?                 @relation(fields: [id_escala], references: [id_escala], onDelete: NoAction, onUpdate: NoAction, map: "fk_excursion_escala")
+  inscripcion_excursion inscripcion_excursion[]
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model FACTURA {
-  id_factura      Int           @id @default(autoincrement())
-  id_reserva      Int?
+  id_factura      Int               @id @default(autoincrement())
+  id_reserva      BigInt?
   id_tipo_factura Int?
-  fecha_emision   DateTime?     @db.Date
-  monto_total     Decimal?      @db.Decimal
-  RESERVA         RESERVA?      @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
-  TIPO_FACTURA    TIPO_FACTURA? @relation(fields: [id_tipo_factura], references: [id_tipo_factura], onDelete: NoAction, onUpdate: NoAction)
+  fecha_emision   DateTime?         @db.Date
+  monto_total     Decimal?          @db.Decimal(12, 2)
+  numero_factura  String?           @unique @db.VarChar(30)
+  estado_factura  String            @default("emitida") @db.VarChar(20)
+  DETALLE_FACTURA DETALLE_FACTURA[]
+  RESERVA         RESERVA?          @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
+  TIPO_FACTURA    TIPO_FACTURA?     @relation(fields: [id_tipo_factura], references: [id_tipo_factura], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model FOLIO_PASAJERO {
-  id_folio       Int       @id @default(autoincrement())
-  id_pasajero    Int?      @unique
-  saldo_actual   Decimal?  @default(0) @db.Decimal
-  limite_credito Decimal?  @db.Decimal
-  PASAJERO       PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+  id_folio       BigInt        @id @default(autoincrement())
+  id_pasajero    BigInt?       @unique
+  saldo_actual   Decimal?      @default(0) @db.Decimal
+  limite_credito Decimal?      @db.Decimal
+  PASAJERO       PASAJERO?     @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+  checkout       checkout[]
+  transaccion    transaccion[]
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model HABITACION {
-  id_habitacion      Int              @id @default(autoincrement())
-  id_cubierta        Int?
-  numero_cabina      String?          @db.VarChar
-  id_tipo_habitacion Int?
-  estado             String?          @db.VarChar
-  CUBIERTA           CUBIERTA?        @relation(fields: [id_cubierta], references: [id_cubierta], onDelete: NoAction, onUpdate: NoAction)
-  TIPO_HABITACION    TIPO_HABITACION? @relation(fields: [id_tipo_habitacion], references: [id_tipo_habitacion], onDelete: NoAction, onUpdate: NoAction)
+  id_habitacion        Int                    @id @default(autoincrement())
+  id_cubierta          Int?
+  numero_cabina        String?                @db.VarChar
+  id_tipo_habitacion   Int?
+  estado               String?                @db.VarChar
+  ASIGNACION_CABINA    ASIGNACION_CABINA[]
+  CUBIERTA             CUBIERTA?              @relation(fields: [id_cubierta], references: [id_cubierta], onDelete: NoAction, onUpdate: NoAction)
+  TIPO_HABITACION      TIPO_HABITACION?       @relation(fields: [id_tipo_habitacion], references: [id_tipo_habitacion], onDelete: NoAction, onUpdate: NoAction)
+  MAYORDOMO_HABITACION MAYORDOMO_HABITACION[]
 }
 
 model HABITO_TOXICO {
-  id_habito   Int     @id @default(autoincrement())
-  nombre      String? @db.VarChar
-  descripcion String?
+  id_habito              Int                      @id @default(autoincrement())
+  nombre                 String?                  @db.VarChar
+  descripcion            String?
+  PASAJERO_HABITO_TOXICO PASAJERO_HABITO_TOXICO[]
 }
 
 model HISTORIAL_MEDICO {
-  id_historial            Int                    @id @default(autoincrement())
-  id_pasajero             Int?                   @unique
+  id_historial            BigInt                   @id @default(autoincrement())
+  id_pasajero             BigInt?                  @unique
   antecedentes_relevantes String?
   alergias                String?
-  grupo_sanguineo         String?                @db.VarChar
+  grupo_sanguineo         String?                  @db.VarChar
   ANTECEDENTE_FAMILIAR    ANTECEDENTE_FAMILIAR[]
-  PASAJERO                PASAJERO?              @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+  PASAJERO                PASAJERO?                @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+  PASAJERO_HABITO_TOXICO  PASAJERO_HABITO_TOXICO[]
   REGISTRO_VACUNA         REGISTRO_VACUNA[]
+  transfusion             transfusion[]
 }
 
 model HISTORIAL_SALARIO {
   id_historial     Int             @id @default(autoincrement())
-  id_empleado      Int?
+  id_empleado      BigInt?
   salario_anterior Decimal?        @db.Decimal
   salario_nuevo    Decimal?        @db.Decimal
   fecha_cambio     DateTime?       @db.Date
@@ -316,19 +420,22 @@ model HORARIO {
 }
 
 model INVENTARIO {
-  id_producto    Int
-  id_punto_venta Int
+  id_producto    BigInt
+  id_punto_venta BigInt
   stock_actual   Int?
   stock_minimo   Int?
+  PRODUCTO       PRODUCTO    @relation(fields: [id_producto], references: [id_producto], onDelete: NoAction, onUpdate: NoAction, map: "fk_inventario_producto")
+  PUNTO_VENTA    PUNTO_VENTA @relation(fields: [id_punto_venta], references: [id_punto_venta], onDelete: NoAction, onUpdate: NoAction, map: "fk_inventario_punto")
 
   @@id([id_producto, id_punto_venta])
 }
 
 model ITINERARIO {
-  id_itinerario Int     @id @default(autoincrement())
-  nombre_ruta   String? @db.VarChar
+  id_itinerario BigInt   @id @default(autoincrement())
+  nombre_ruta   String?  @db.VarChar
   descripcion   String?
   VIAJE         VIAJE[]
+  escala        escala[]
 }
 
 model MANTENIMIENTO {
@@ -343,35 +450,49 @@ model MANTENIMIENTO {
 }
 
 model MAYORDOMO_HABITACION {
-  id_empleado   Int
+  id_empleado   BigInt
   id_habitacion Int
   id_viaje      Int
+  EMPLEADO      EMPLEADO   @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "fk_mayordomo_empleado")
+  HABITACION    HABITACION @relation(fields: [id_habitacion], references: [id_habitacion], onDelete: NoAction, onUpdate: NoAction, map: "fk_mayordomo_habitacion")
+  VIAJE         VIAJE      @relation(fields: [id_viaje], references: [id_viaje], onDelete: NoAction, onUpdate: NoAction, map: "fk_mayordomo_viaje")
 
   @@id([id_empleado, id_habitacion, id_viaje])
 }
 
 model MEDICAMENTO {
-  id_medicamento     Int     @id @default(autoincrement())
-  nombre_comercial   String? @db.VarChar
-  ingrediente_activo String? @db.VarChar
+  id_medicamento     Int        @id @default(autoincrement())
+  nombre_comercial   String?    @db.VarChar
+  ingrediente_activo String?    @db.VarChar
+  farmacia           farmacia[]
 }
 
 model MEDICO {
-  id_medico       Int       @id @default(autoincrement())
-  id_empleado     Int?      @unique
-  licencia_medica String?   @db.VarChar
-  EMPLEADO        EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+  id_medico       BigInt        @id @default(autoincrement())
+  id_empleado     BigInt?       @unique
+  licencia_medica String?       @db.VarChar
+  EMPLEADO        EMPLEADO?     @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+  consulta        consulta[]
+  emergencia      emergencia[]
+  transfusion     transfusion[]
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model METODO_PAGO {
-  id_metodo     Int     @id @default(autoincrement())
-  nombre_metodo String? @unique @db.VarChar
+  id_metodo            BigInt                 @id @default(autoincrement())
+  tipo_nombre          String?                @unique(map: "METODO_PAGO_nombre_metodo_key") @db.VarChar
+  campos_requeridos    String?                @db.VarChar(100)
+  activo               Boolean                @default(true)
+  metodos_pago_usuario metodos_pago_usuario[]
+  pago_reserva         pago_reserva[]
 }
 
 model MONEDA {
-  id_moneda Int     @id @default(autoincrement())
-  codigo    String? @unique @db.VarChar
-  nombre    String? @db.VarChar
+  id_moneda    BigInt         @id @default(autoincrement())
+  codigo       String?        @unique @db.VarChar
+  nombre       String?        @db.VarChar
+  RESERVA      RESERVA[]
+  pago_reserva pago_reserva[]
 }
 
 model MOTIVO_SALARIO {
@@ -380,13 +501,15 @@ model MOTIVO_SALARIO {
   HISTORIAL_SALARIO HISTORIAL_SALARIO[]
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model ORDEN_COMPRA {
-  id_orden          Int        @id @default(autoincrement())
-  id_proveedor      Int?
-  fecha_orden       DateTime?  @db.Date
-  id_escala_entrega Int?
-  estado            String?    @db.VarChar
-  PROVEEDOR         PROVEEDOR? @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: NoAction, onUpdate: NoAction)
+  id_orden             Int                    @id @default(autoincrement())
+  id_proveedor         Int?
+  fecha_orden          DateTime?              @db.Date
+  id_escala_entrega    Int?
+  estado               String?                @db.VarChar
+  DETALLE_ORDEN_COMPRA DETALLE_ORDEN_COMPRA[]
+  PROVEEDOR            PROVEEDOR?             @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model PAIS {
@@ -396,36 +519,60 @@ model PAIS {
   CIUDAD     CIUDAD[]
 }
 
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model PASAJERO {
-  id_pasajero           Int               @id @default(autoincrement())
-  id_reserva            Int?
-  nombre                String?           @db.VarChar
-  apellido              String?           @db.VarChar
-  relacion_titular      String?           @db.VarChar
-  id_cliente_referencia Int?
-  DOCUMENTO             DOCUMENTO[]
-  EQUIPAJE              EQUIPAJE[]
-  FOLIO_PASAJERO        FOLIO_PASAJERO?
-  HISTORIAL_MEDICO      HISTORIAL_MEDICO?
-  CLIENTE               CLIENTE?          @relation(fields: [id_cliente_referencia], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)
-  RESERVA               RESERVA?          @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
+  id_pasajero            BigInt                  @id @default(autoincrement())
+  id_reserva             BigInt?
+  nombre                 String?                 @db.VarChar
+  apellido               String?                 @db.VarChar
+  relacion_titular       String?                 @db.VarChar
+  id_cliente_referencia  Int?
+  fecha_nacimiento       DateTime?               @db.Date
+  genero                 String?                 @db.VarChar(20)
+  documento_tipo         String?                 @db.VarChar(40)
+  documento_numero       String?                 @db.VarChar(60)
+  necesidades_especiales String?
+  es_titular             Boolean                 @default(false)
+  DOCUMENTO              DOCUMENTO[]
+  EQUIPAJE               EQUIPAJE[]
+  FOLIO_PASAJERO         FOLIO_PASAJERO?
+  HISTORIAL_MEDICO       HISTORIAL_MEDICO?
+  CLIENTE                CLIENTE?                @relation(fields: [id_cliente_referencia], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)
+  RESERVA                RESERVA?                @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
+  check_in               check_in?
+  checkout               checkout[]
+  consulta               consulta[]
+  desembarque            desembarque[]
+  dining_requests        dining_requests[]
+  embarque               embarque[]
+  emergencia             emergencia[]
+  factura_medica         factura_medica[]
+  historial_viajes       historial_viajes[]
+  inscripcion_excursion  inscripcion_excursion[]
+  reclamo_sugerencia     reclamo_sugerencia[]
+  ticket                 ticket[]
 }
 
 model PASAJERO_HABITO_TOXICO {
-  id_historial Int
-  id_habito    Int
+  id_historial     BigInt
+  id_habito        Int
+  HABITO_TOXICO    HABITO_TOXICO    @relation(fields: [id_habito], references: [id_habito], onDelete: NoAction, onUpdate: NoAction, map: "fk_pht_habito")
+  HISTORIAL_MEDICO HISTORIAL_MEDICO @relation(fields: [id_historial], references: [id_historial], onDelete: NoAction, onUpdate: NoAction, map: "fk_pht_historial")
 
   @@id([id_historial, id_habito])
 }
 
 model PRODUCTO {
-  id_producto   Int        @id @default(autoincrement())
-  nombre        String?    @db.VarChar
-  descripcion   String?
-  id_proveedor  Int?
-  precio_compra Decimal?   @db.Decimal
-  precio_venta  Decimal?   @db.Decimal
-  PROVEEDOR     PROVEEDOR? @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: NoAction, onUpdate: NoAction)
+  id_producto           BigInt                  @id @default(autoincrement())
+  nombre                String?                 @db.VarChar
+  descripcion           String?
+  id_proveedor          Int?
+  precio_compra         Decimal?                @db.Decimal
+  precio_venta          Decimal?                @db.Decimal
+  DETALLE_ORDEN_COMPRA  DETALLE_ORDEN_COMPRA[]
+  INVENTARIO            INVENTARIO[]
+  PROVEEDOR             PROVEEDOR?              @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: NoAction, onUpdate: NoAction)
+  movimiento_inventario movimiento_inventario[]
 }
 
 model PROVEEDOR {
@@ -440,42 +587,66 @@ model PROVEEDOR {
   TIPO_PROVEEDOR    TIPO_PROVEEDOR? @relation(fields: [id_tipo_proveedor], references: [id_tipo_proveedor], onDelete: NoAction, onUpdate: NoAction)
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model PUERTO {
-  id_puerto    Int     @id @default(autoincrement())
-  nombre       String? @db.VarChar
-  regulaciones String?
-  id_ciudad    Int?
-  CIUDAD       CIUDAD? @relation(fields: [id_ciudad], references: [id_ciudad], onDelete: NoAction, onUpdate: NoAction)
-  VIAJE        VIAJE[]
+  id_puerto     BigInt     @id @default(autoincrement())
+  nombre        String?    @db.VarChar
+  regulaciones  String?
+  id_ciudad     Int?
+  codigo_puerto String?    @unique @db.VarChar(10)
+  latitud       Decimal?   @db.Decimal(9, 6)
+  longitud      Decimal?   @db.Decimal(9, 6)
+  activo        Boolean    @default(true)
+  tipo_puerto   String?    @db.VarChar(30)
+  EMPLEADO      EMPLEADO[]
+  CIUDAD        CIUDAD?    @relation(fields: [id_ciudad], references: [id_ciudad], onDelete: NoAction, onUpdate: NoAction)
+  VIAJE         VIAJE[]
+  escala        escala[]
 }
 
 model PUNTO_VENTA {
-  id_punto_venta Int      @id @default(autoincrement())
-  nombre         String?  @db.VarChar
-  id_crucero     Int?
-  tipo           String?  @db.VarChar
-  CRUCERO        CRUCERO? @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
+  id_punto_venta        BigInt                  @id @default(autoincrement())
+  nombre                String?                 @db.VarChar
+  id_crucero            Int?
+  tipo                  String?                 @db.VarChar
+  id_catering           BigInt?
+  INVENTARIO            INVENTARIO[]
+  catering              catering?               @relation(fields: [id_catering], references: [id_catering], onDelete: NoAction, onUpdate: NoAction)
+  CRUCERO               CRUCERO?                @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
+  movimiento_inventario movimiento_inventario[]
 }
 
 model REGISTRO_VACUNA {
   id_registro      Int               @id @default(autoincrement())
-  id_historial     Int?
+  id_historial     BigInt?
   nombre_vacuna    String?           @db.VarChar
   fecha_aplicacion DateTime?         @db.Date
   HISTORIAL_MEDICO HISTORIAL_MEDICO? @relation(fields: [id_historial], references: [id_historial], onDelete: NoAction, onUpdate: NoAction)
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model RESERVA {
-  id_reserva           Int                    @id @default(autoincrement())
+  id_reserva           BigInt                 @id @default(autoincrement())
   id_cliente           Int?
   id_viaje             Int?
   id_agente            Int?
-  fecha_reserva        DateTime?              @db.Date
-  monto_total          Decimal?               @db.Decimal
+  fecha_reserva        DateTime?              @db.Timestamp(6)
+  monto_total          Decimal?               @db.Decimal(12, 2)
   estado_reserva       String?                @db.VarChar
   id_tipo_reserva      Int?
   id_canal             Int?
+  codigo_reserva       String?                @unique @db.VarChar(20)
+  pasajeros_adultos    Int                    @default(1)
+  pasajeros_ninos      Int                    @default(0)
+  moneda               String                 @default("USD") @db.Char(3)
+  subtotal             Decimal?               @db.Decimal(12, 2)
+  impuestos            Decimal                @default(0) @db.Decimal(12, 2)
+  observaciones        String?
+  id_moneda            BigInt?
+  id_tipo_plan         BigInt?
   APLICACION_DESCUENTO APLICACION_DESCUENTO[]
+  ASIGNACION_CABINA    ASIGNACION_CABINA[]
   CANCELACION          CANCELACION[]
   COMPENSACION         COMPENSACION[]
   FACTURA              FACTURA[]
@@ -483,8 +654,19 @@ model RESERVA {
   AGENTE_VIAJE         AGENTE_VIAJE?          @relation(fields: [id_agente], references: [id_agente], onDelete: NoAction, onUpdate: NoAction)
   CANAL_VENTA          CANAL_VENTA?           @relation(fields: [id_canal], references: [id_canal], onDelete: NoAction, onUpdate: NoAction)
   CLIENTE              CLIENTE?               @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)
+  MONEDA               MONEDA?                @relation(fields: [id_moneda], references: [id_moneda], onDelete: NoAction, onUpdate: NoAction)
+  tipo_plan            tipo_plan?             @relation(fields: [id_tipo_plan], references: [id_tipo_plan], onDelete: NoAction, onUpdate: NoAction)
   TIPO_RESERVA         TIPO_RESERVA?          @relation(fields: [id_tipo_reserva], references: [id_tipo_reserva], onDelete: NoAction, onUpdate: NoAction)
   VIAJE                VIAJE?                 @relation(fields: [id_viaje], references: [id_viaje], onDelete: NoAction, onUpdate: NoAction)
+  dining_requests      dining_requests[]
+  historial_viajes     historial_viajes[]
+  notificaciones       notificaciones[]
+  pago_reserva         pago_reserva[]
+  reserva_experiencia  reserva_experiencia[]
+  traslado             traslado[]
+
+  @@index([id_cliente, fecha_reserva(sort: Desc)], map: "idx_reserva_cliente_fecha")
+  @@index([id_viaje, estado_reserva], map: "idx_reserva_viaje_estado")
 }
 
 model ROL {
@@ -498,11 +680,11 @@ model TAREA_MANTENIMIENTO {
   id_tarea                Int            @id @default(autoincrement())
   id_mantenimiento        Int?
   descripcion             String?
-  responsable             Int?
+  id_empleado_responsable BigInt?
   fecha_finalizacion_real DateTime?      @db.Date
   costo                   Decimal?       @db.Decimal
   MANTENIMIENTO           MANTENIMIENTO? @relation(fields: [id_mantenimiento], references: [id_mantenimiento], onDelete: NoAction, onUpdate: NoAction)
-  EMPLEADO                EMPLEADO?      @relation(fields: [responsable], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+  EMPLEADO                EMPLEADO?      @relation(fields: [id_empleado_responsable], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "TAREA_MANTENIMIENTO_responsable_fkey")
 }
 
 model TIPO_ACTIVIDAD {
@@ -528,12 +710,19 @@ model TIPO_FACTURA {
   FACTURA         FACTURA[]
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model TIPO_HABITACION {
-  id_tipo_habitacion Int          @id @default(autoincrement())
-  nombre             String?      @unique @db.VarChar
-  descripcion        String?      @db.VarChar
-  capacidad_max      Int?
-  HABITACION         HABITACION[]
+  id_tipo_habitacion    Int             @id @default(autoincrement())
+  nombre                String?         @unique @db.VarChar
+  descripcion           String?         @db.VarChar
+  capacidad_max         Int?
+  precio_noche          Decimal?        @db.Decimal(10, 2)
+  tamano_m2             Decimal?        @db.Decimal(7, 2)
+  capacidad_ninos       Int             @default(0)
+  imagen_url            String?
+  estado_disponibilidad String          @default("disponible") @db.VarChar(20)
+  HABITACION            HABITACION[]
+  tarifas_viaje         tarifas_viaje[]
 }
 
 model TIPO_PROVEEDOR {
@@ -549,39 +738,812 @@ model TIPO_RESERVA {
 }
 
 model TIPO_TRANSACCION {
-  id_tipo_transaccion Int     @id @default(autoincrement())
-  nombre              String? @unique @db.VarChar
+  id_tipo_transaccion BigInt        @id @default(autoincrement())
+  nombre              String?       @unique @db.VarChar
+  transaccion         transaccion[]
 }
 
 model TRATAMIENTO {
-  id_consulta    Int
-  id_medicamento Int
-  dosis          String? @db.VarChar
-  frecuencia     String? @db.VarChar
-  duracion       String? @db.VarChar
+  id_consulta         Int
+  id_medicamento      Int
+  dosis               String?           @db.VarChar
+  frecuencia          String?           @db.VarChar
+  duracion            String?           @db.VarChar
+  id_tipo_tratamiento BigInt?
+  tipo_tratamiento    tipo_tratamiento? @relation(fields: [id_tipo_tratamiento], references: [id_tipo_tratamiento], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([id_consulta, id_medicamento])
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model USUARIO {
-  id_usuario    Int       @id @default(autoincrement())
-  id_empleado   Int?      @unique
-  username      String?   @unique @db.VarChar
-  password_hash String?   @db.VarChar
-  id_rol        Int?
-  EMPLEADO      EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
-  ROL           ROL?      @relation(fields: [id_rol], references: [id_rol], onDelete: NoAction, onUpdate: NoAction)
+  id_usuario                Int                        @id @default(autoincrement())
+  id_empleado               BigInt?                    @unique
+  username                  String?                    @unique @db.VarChar
+  password_hash             String?                    @db.VarChar
+  id_rol                    Int?
+  email                     String?                    @db.VarChar(255)
+  estado_cuenta             String                     @default("activo") @db.VarChar(20)
+  ultimo_login_at           DateTime?                  @db.Timestamp(6)
+  es_cliente                Boolean                    @default(false)
+  id_cliente                Int?
+  created_at                DateTime                   @default(now()) @db.Timestamp(6)
+  updated_at                DateTime                   @default(now()) @db.Timestamp(6)
+  two_factor_enabled        Boolean                    @default(false)
+  two_factor_secret         String?
+  idioma                    String                     @default("es") @db.VarChar(5)
+  zona_horaria              String                     @default("America/Santo_Domingo") @db.VarChar(60)
+  intentos_fallidos         Int                        @default(0) @db.SmallInt
+  bloqueado_hasta           DateTime?                  @db.Timestamp(6)
+  EMPLEADO                  EMPLEADO?                  @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+  ROL                       ROL?                       @relation(fields: [id_rol], references: [id_rol], onDelete: NoAction, onUpdate: NoAction)
+  CLIENTE                   CLIENTE?                   @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "fk_usuario_cliente")
+  metodos_pago_usuario      metodos_pago_usuario[]
+  notificaciones            notificaciones[]
+  preferencias_notificacion preferencias_notificacion?
+
+  @@index([idioma], map: "idx_usuario_idioma")
 }
 
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model VIAJE {
-  id_viaje           Int         @id @default(autoincrement())
-  id_crucero         Int?
-  id_itinerario      Int?
-  fecha_salida_real  DateTime?   @db.Date
-  fecha_llegada_real DateTime?   @db.Date
-  id_puerto_origen   Int?
-  RESERVA            RESERVA[]
-  CRUCERO            CRUCERO?    @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
-  ITINERARIO         ITINERARIO? @relation(fields: [id_itinerario], references: [id_itinerario], onDelete: NoAction, onUpdate: NoAction)
-  PUERTO             PUERTO?     @relation(fields: [id_puerto_origen], references: [id_puerto], onDelete: NoAction, onUpdate: NoAction)
+  id_viaje             Int                    @id @default(autoincrement())
+  id_crucero           Int?
+  id_itinerario        BigInt?
+  fecha_salida_real    DateTime?              @db.Date
+  fecha_llegada_real   DateTime?              @db.Date
+  id_puerto_origen     BigInt?
+  nombre_viaje         String?                @db.VarChar(255)
+  duracion_dias        Int?
+  estado_publicacion   String                 @default("borrador") @db.VarChar(20)
+  destino_id           BigInt?
+  ASIGNACION_VIAJE     ASIGNACION_VIAJE[]
+  MAYORDOMO_HABITACION MAYORDOMO_HABITACION[]
+  RESERVA              RESERVA[]
+  CRUCERO              CRUCERO?               @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
+  ITINERARIO           ITINERARIO?            @relation(fields: [id_itinerario], references: [id_itinerario], onDelete: NoAction, onUpdate: NoAction)
+  PUERTO               PUERTO?                @relation(fields: [id_puerto_origen], references: [id_puerto], onDelete: NoAction, onUpdate: NoAction)
+  destinos             destinos?              @relation(fields: [destino_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_viaje_destino")
+  historial_viajes     historial_viajes[]
+  ofertas              ofertas[]
+  tarifas_viaje        tarifas_viaje[]
+  testimonios          testimonios[]
+
+  @@index([destino_id, fecha_salida_real], map: "idx_viaje_destino_salida")
+}
+
+model auditoria {
+  id_registro_auditoria BigInt    @id @default(autoincrement())
+  tabla_afectada        String    @db.VarChar(100)
+  registro_id           BigInt
+  accion                String    @db.VarChar(20)
+  id_empleado           BigInt?
+  fecha_hora            DateTime  @default(now()) @db.Timestamp(6)
+  datos_anteriores      Json?
+  datos_nuevos          Json?
+  ip_o_dispositivo      String?   @db.VarChar(100)
+  notas                 String?
+  EMPLEADO              EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onUpdate: NoAction)
+
+  @@index([accion], map: "idx_auditoria_accion")
+  @@index([id_empleado], map: "idx_auditoria_empleado")
+  @@index([tabla_afectada, fecha_hora], map: "idx_auditoria_tabla_fecha")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model catering {
+  id_catering         BigInt        @id @default(autoincrement())
+  nombre              String        @db.VarChar(120)
+  tipo                String        @db.VarChar(60)
+  id_crucero          Int
+  id_cubierta         Int?
+  ubicacion_desc      String?       @db.VarChar(150)
+  monto_renta_mensual Decimal?      @db.Decimal(12, 2)
+  activo              Boolean       @default(true)
+  contacto            String?       @db.VarChar(120)
+  created_at          DateTime      @default(now()) @db.Timestamp(6)
+  PUNTO_VENTA         PUNTO_VENTA[]
+  CRUCERO             CRUCERO       @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
+  CUBIERTA            CUBIERTA?     @relation(fields: [id_cubierta], references: [id_cubierta], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model check_in {
+  id_checkin               BigInt    @id @default(autoincrement())
+  id_pasajero              BigInt    @unique(map: "unique_checkin_por_pasajero")
+  fecha_checkin_online     DateTime? @db.Timestamp(6)
+  fecha_checkin_presencial DateTime? @db.Timestamp(6)
+  estado                   String?   @default("Pendiente") @db.VarChar(50)
+  terminal_o_punto         String?   @db.VarChar(100)
+  notas                    String?
+  PASAJERO                 PASAJERO  @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([fecha_checkin_online], map: "idx_checkin_online")
+  @@index([id_pasajero], map: "idx_checkin_pasajero")
+  @@index([fecha_checkin_presencial], map: "idx_checkin_presencial")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model checkout {
+  id_checkout          BigInt          @id @default(autoincrement())
+  id_pasajero          BigInt
+  id_folio             BigInt?
+  fecha_hora_checkout  DateTime        @default(now()) @db.Timestamp(6)
+  saldo_liquidado      Decimal         @default(0) @db.Decimal(12, 2)
+  metodo_liquidacion   String?         @db.VarChar(60)
+  tarjeta_devuelta     Boolean         @default(false)
+  estado               String          @default("pendiente") @db.VarChar(30)
+  notas                String?
+  id_empleado_registro BigInt?
+  EMPLEADO             EMPLEADO?       @relation(fields: [id_empleado_registro], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+  FOLIO_PASAJERO       FOLIO_PASAJERO? @relation(fields: [id_folio], references: [id_folio], onDelete: NoAction, onUpdate: NoAction)
+  PASAJERO             PASAJERO        @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_pasajero, estado], map: "idx_checkout_pasajero")
+}
+
+model cliente_preferencia {
+  id             BigInt       @id @default(autoincrement())
+  id_cliente     Int
+  id_preferencia BigInt
+  created_at     DateTime     @default(now()) @db.Timestamp(6)
+  CLIENTE        CLIENTE      @relation(fields: [id_cliente], references: [id_cliente], onDelete: Cascade, onUpdate: NoAction)
+  preferencias   preferencias @relation(fields: [id_preferencia], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_cliente, id_preferencia], map: "uq_cliente_preferencia")
+}
+
+model conciliacion {
+  id_conciliacion      BigInt      @id @default(autoincrement())
+  id_transaccion       BigInt      @unique(map: "unique_conciliacion_por_transaccion")
+  fecha_conciliacion   DateTime    @default(now()) @db.Timestamp(6)
+  monto_verificado     Decimal     @db.Decimal(12, 2)
+  diferencia           Decimal?    @default(0.00) @db.Decimal(12, 2)
+  estado               String?     @default("Conciliado") @db.VarChar(50)
+  id_empleado_concilia BigInt?
+  notas                String?
+  EMPLEADO             EMPLEADO?   @relation(fields: [id_empleado_concilia], references: [id_empleado], onUpdate: NoAction)
+  transaccion          transaccion @relation(fields: [id_transaccion], references: [id_transaccion], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([estado], map: "idx_conciliacion_estado")
+  @@index([fecha_conciliacion], map: "idx_conciliacion_fecha")
+  @@index([id_transaccion], map: "idx_conciliacion_transaccion")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model consulta {
+  id_consulta          BigInt           @id @default(autoincrement())
+  id_pasajero          BigInt?
+  id_empleado_paciente BigInt?
+  id_medico            BigInt
+  fecha_hora           DateTime         @default(now()) @db.Timestamp(6)
+  motivo_consulta      String
+  id_diagnostico       BigInt?
+  tratamiento_inicial  String?
+  estado               String?          @default("Abierta") @db.VarChar(50)
+  notas                String?
+  DIAGNOSTICO          DIAGNOSTICO?     @relation(fields: [id_diagnostico], references: [id_diagnostico], onUpdate: NoAction)
+  EMPLEADO             EMPLEADO?        @relation(fields: [id_empleado_paciente], references: [id_empleado], onUpdate: NoAction)
+  MEDICO               MEDICO           @relation(fields: [id_medico], references: [id_medico], onUpdate: NoAction)
+  PASAJERO             PASAJERO?        @relation(fields: [id_pasajero], references: [id_pasajero], onUpdate: NoAction)
+  factura_medica       factura_medica[]
+
+  @@index([id_diagnostico], map: "idx_consulta_diagnostico")
+  @@index([id_empleado_paciente], map: "idx_consulta_empleado")
+  @@index([fecha_hora], map: "idx_consulta_fecha")
+  @@index([id_medico], map: "idx_consulta_medico")
+  @@index([id_pasajero], map: "idx_consulta_pasajero")
+}
+
+model desembarque {
+  id_desembarque         BigInt   @id @default(autoincrement())
+  id_pasajero            BigInt
+  id_escala              BigInt
+  fecha_hora_desembarque DateTime @default(now()) @db.Timestamp(6)
+  metodo_desembarque     String?  @db.VarChar(50)
+  zona_desembarque       String?  @db.VarChar(100)
+  estado                 String?  @default("Completado") @db.VarChar(50)
+  notas                  String?
+  escala                 escala   @relation(fields: [id_escala], references: [id_escala], onDelete: Cascade, onUpdate: NoAction)
+  PASAJERO               PASAJERO @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_pasajero, id_escala], map: "unique_desembarque_por_pasajero_escala")
+  @@index([id_escala], map: "idx_desembarque_escala")
+  @@index([fecha_hora_desembarque], map: "idx_desembarque_fecha")
+  @@index([id_pasajero], map: "idx_desembarque_pasajero")
+}
+
+model destino_tags {
+  destino_id BigInt
+  tag_id     BigInt
+  destinos   destinos @relation(fields: [destino_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tags       tags     @relation(fields: [tag_id], references: [id_tag], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([destino_id, tag_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model destinos {
+  id              BigInt         @id @default(autoincrement())
+  region          String         @db.VarChar(80)
+  titulo          String         @db.VarChar(150)
+  ubicacion       String         @db.VarChar(150)
+  descripcion     String?
+  rating_promedio Decimal?       @db.Decimal(3, 1)
+  imagen_url      String?
+  activo          Boolean        @default(true)
+  created_at      DateTime       @default(now()) @db.Timestamp(6)
+  pais            String?        @db.VarChar(80)
+  precio_desde    Decimal?       @db.Decimal(10, 2)
+  moneda          String         @default("USD") @db.Char(3)
+  video_url       String?
+  galeria_urls    String[]       @default([])
+  VIAJE           VIAJE[]
+  destino_tags    destino_tags[]
+  ofertas         ofertas[]
+
+  @@index([pais, activo], map: "idx_destinos_pais")
+  @@index([region], map: "idx_destinos_region")
+}
+
+model detalle_factura_medica {
+  id_detalle        BigInt         @id @default(autoincrement())
+  id_factura_medica BigInt
+  descripcion       String         @db.VarChar(255)
+  cantidad          Int            @default(1)
+  precio_unitario   Decimal        @default(0) @db.Decimal(10, 2)
+  subtotal          Decimal?       @default(dbgenerated("((cantidad)::numeric * precio_unitario)")) @db.Decimal(12, 2)
+  factura_medica    factura_medica @relation(fields: [id_factura_medica], references: [id_factura_medica], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model dining_requests {
+  id_dining        BigInt    @id @default(autoincrement())
+  id_reserva       BigInt
+  id_pasajero      BigInt?
+  turno_cena       String    @default("flexible") @db.VarChar(20)
+  preferencia_mesa String?   @db.VarChar(30)
+  tamano_mesa      Int?      @db.SmallInt
+  dieta_especial   String?   @db.VarChar(60)
+  alergias_notas   String?
+  ocasion_especial String?   @db.VarChar(80)
+  estado           String    @default("pendiente") @db.VarChar(20)
+  notas            String?
+  created_at       DateTime  @default(now()) @db.Timestamp(6)
+  PASAJERO         PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+  RESERVA          RESERVA   @relation(fields: [id_reserva], references: [id_reserva], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_reserva], map: "idx_dining_reserva")
+}
+
+model embarque {
+  id_embarque         BigInt   @id @default(autoincrement())
+  id_pasajero         BigInt
+  id_escala           BigInt
+  fecha_hora_embarque DateTime @default(now()) @db.Timestamp(6)
+  metodo_embarque     String?  @db.VarChar(50)
+  zona_embarque       String?  @db.VarChar(100)
+  estado              String?  @default("Confirmado") @db.VarChar(50)
+  notas               String?
+  escala              escala   @relation(fields: [id_escala], references: [id_escala], onDelete: Cascade, onUpdate: NoAction)
+  PASAJERO            PASAJERO @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_pasajero, id_escala], map: "unique_embarque_por_pasajero_escala")
+  @@index([id_escala], map: "idx_embarque_escala")
+  @@index([fecha_hora_embarque], map: "idx_embarque_fecha")
+  @@index([id_pasajero], map: "idx_embarque_pasajero")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model emergencia {
+  id_emergencia         BigInt    @id @default(autoincrement())
+  tipo                  String    @db.VarChar(100)
+  fecha_hora            DateTime  @default(now()) @db.Timestamp(6)
+  descripcion           String
+  id_pasajero           BigInt?
+  id_empleado           BigInt?
+  lugar                 String?   @db.VarChar(150)
+  accion_inmediata      String?
+  estado                String?   @default("Activa") @db.VarChar(50)
+  id_medico_responsable BigInt?
+  EMPLEADO              EMPLEADO? @relation(fields: [id_empleado], references: [id_empleado], onUpdate: NoAction)
+  MEDICO                MEDICO?   @relation(fields: [id_medico_responsable], references: [id_medico], onUpdate: NoAction)
+  PASAJERO              PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onUpdate: NoAction)
+
+  @@index([id_empleado], map: "idx_emergencia_empleado")
+  @@index([fecha_hora], map: "idx_emergencia_fecha")
+  @@index([id_pasajero], map: "idx_emergencia_pasajero")
+  @@index([tipo], map: "idx_emergencia_tipo")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model escala {
+  id_escala          BigInt        @id @default(autoincrement())
+  id_itinerario      BigInt
+  id_puerto          BigInt
+  orden_escala       Int
+  fecha_llegada_prog DateTime?     @db.Timestamp(6)
+  fecha_salida_prog  DateTime?     @db.Timestamp(6)
+  tipo_escala        String        @default("escala") @db.VarChar(30)
+  observaciones      String?
+  EXCURSION          EXCURSION[]
+  desembarque        desembarque[]
+  embarque           embarque[]
+  ITINERARIO         ITINERARIO    @relation(fields: [id_itinerario], references: [id_itinerario], onDelete: Cascade, onUpdate: NoAction)
+  PUERTO             PUERTO        @relation(fields: [id_puerto], references: [id_puerto], onUpdate: NoAction)
+
+  @@unique([id_itinerario, orden_escala], map: "unique_orden_por_itinerario")
+  @@unique([id_itinerario, orden_escala], map: "ux_escala_orden")
+  @@index([fecha_llegada_prog, fecha_salida_prog], map: "idx_escala_fechas")
+  @@index([id_itinerario], map: "idx_escala_itinerario")
+  @@index([id_puerto], map: "idx_escala_puerto")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model experiencias {
+  id                  BigInt                @id @default(autoincrement())
+  nombre              String                @db.VarChar(120)
+  descripcion         String?
+  unidad_cobro        String                @default("por_persona") @db.VarChar(30)
+  precio_base         Decimal               @default(0) @db.Decimal(10, 2)
+  categoria           String                @db.VarChar(60)
+  imagen_url          String?
+  activa              Boolean               @default(true)
+  oferta_experiencia  oferta_experiencia[]
+  reserva_experiencia reserva_experiencia[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model factura_medica {
+  id_factura_medica      BigInt                   @id @default(autoincrement())
+  id_consulta            BigInt
+  id_pasajero            BigInt?
+  numero_factura         String?                  @unique @db.VarChar(30)
+  fecha_emision          DateTime                 @default(now()) @db.Timestamp(6)
+  subtotal               Decimal                  @default(0) @db.Decimal(12, 2)
+  impuestos              Decimal                  @default(0) @db.Decimal(12, 2)
+  total                  Decimal                  @default(0) @db.Decimal(12, 2)
+  moneda                 String                   @default("USD") @db.Char(3)
+  estado                 String                   @default("emitida") @db.VarChar(20)
+  cubierto_por_seguro    Boolean                  @default(false)
+  notas                  String?
+  detalle_factura_medica detalle_factura_medica[]
+  consulta               consulta                 @relation(fields: [id_consulta], references: [id_consulta], onDelete: NoAction, onUpdate: NoAction)
+  PASAJERO               PASAJERO?                @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_consulta], map: "idx_factura_medica_consulta")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model farmacia {
+  id_farmacia       BigInt      @id @default(autoincrement())
+  id_medicamento    Int
+  id_crucero        Int
+  stock_actual      Int         @default(0)
+  stock_minimo      Int         @default(5)
+  unidad            String      @default("unidad") @db.VarChar(30)
+  fecha_vencimiento DateTime?   @db.Date
+  ubicacion         String?     @db.VarChar(80)
+  CRUCERO           CRUCERO     @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
+  MEDICAMENTO       MEDICAMENTO @relation(fields: [id_medicamento], references: [id_medicamento], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id_medicamento, id_crucero], map: "uq_farmacia_med_crucero")
+  @@index([id_crucero, stock_actual], map: "idx_farmacia_crucero")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model historial_viajes {
+  id_historial_viaje     BigInt    @id @default(autoincrement())
+  id_pasajero            BigInt
+  id_reserva             BigInt
+  id_viaje               Int
+  fecha_embarque_real    DateTime? @db.Timestamp(6)
+  fecha_desembarque_real DateTime? @db.Timestamp(6)
+  noches_navegadas       Int?      @default(dbgenerated("(EXTRACT(day FROM (fecha_desembarque_real - fecha_embarque_real)))::integer"))
+  destino_principal      String?   @db.VarChar(150)
+  calificacion           Int?      @db.SmallInt
+  created_at             DateTime  @default(now()) @db.Timestamp(6)
+  PASAJERO               PASAJERO  @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction)
+  RESERVA                RESERVA   @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
+  VIAJE                  VIAJE     @relation(fields: [id_viaje], references: [id_viaje], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id_pasajero, id_reserva], map: "uq_histviaje_pasajero_reserva")
+  @@index([id_pasajero], map: "idx_historial_viajes_pasajero")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model imagenes_crucero {
+  id_imagen  BigInt   @id @default(autoincrement())
+  id_crucero Int
+  url        String
+  alt_text   String?  @db.VarChar(200)
+  categoria  String   @default("exterior") @db.VarChar(40)
+  orden      Int      @default(0) @db.SmallInt
+  es_portada Boolean  @default(false)
+  activa     Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  CRUCERO    CRUCERO  @relation(fields: [id_crucero], references: [id_crucero], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_crucero, orden], map: "idx_imagenes_crucero_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model inscripcion_excursion {
+  id_inscripcion       BigInt    @id @default(autoincrement())
+  id_pasajero          BigInt
+  id_excursion         BigInt
+  fecha_inscripcion    DateTime  @default(now()) @db.Timestamp(6)
+  estado               String?   @default("Confirmada") @db.VarChar(50)
+  numero_participantes Int?      @default(1)
+  notas                String?
+  EXCURSION            EXCURSION @relation(fields: [id_excursion], references: [id_excursion], onDelete: NoAction, onUpdate: NoAction, map: "fk_inscripcion_excursion")
+  PASAJERO             PASAJERO  @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "fk_inscripcion_pasajero")
+
+  @@unique([id_pasajero, id_excursion], map: "unique_inscripcion_por_pasajero_excursion")
+  @@index([estado], map: "idx_inscripcion_estado")
+  @@index([id_excursion], map: "idx_inscripcion_excursion")
+  @@index([id_pasajero], map: "idx_inscripcion_pasajero")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model metodos_pago_usuario {
+  id                  BigInt      @id @default(autoincrement())
+  id_usuario          Int
+  id_tipo_pago        BigInt
+  last4               String?     @db.Char(4)
+  marca_tarjeta       String?     @db.VarChar(30)
+  exp_mes             Int?        @db.SmallInt
+  exp_anio            Int?        @db.SmallInt
+  titular_enmascarado String?     @db.VarChar(60)
+  email_paypal        String?     @db.VarChar(255)
+  banco               String?     @db.VarChar(80)
+  cuenta_enmascarada  String?     @db.VarChar(20)
+  es_predeterminado   Boolean     @default(false)
+  activo              Boolean     @default(true)
+  created_at          DateTime    @default(now()) @db.Timestamp(6)
+  METODO_PAGO         METODO_PAGO @relation(fields: [id_tipo_pago], references: [id_metodo], onDelete: NoAction, onUpdate: NoAction)
+  USUARIO             USUARIO     @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model movimiento_inventario {
+  id_movimiento   BigInt      @id @default(autoincrement())
+  id_producto     BigInt
+  id_punto_venta  BigInt
+  tipo_movimiento String      @db.VarChar(50)
+  cantidad        Int
+  fecha_hora      DateTime    @default(now()) @db.Timestamp(6)
+  id_empleado     BigInt?
+  motivo          String?
+  referencia      String?     @db.VarChar(100)
+  EMPLEADO        EMPLEADO?   @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "fk_movinv_empleado")
+  PRODUCTO        PRODUCTO    @relation(fields: [id_producto], references: [id_producto], onDelete: NoAction, onUpdate: NoAction, map: "fk_movinv_producto")
+  PUNTO_VENTA     PUNTO_VENTA @relation(fields: [id_punto_venta], references: [id_punto_venta], onDelete: NoAction, onUpdate: NoAction, map: "fk_movinv_punto")
+
+  @@index([fecha_hora], map: "idx_movimiento_fecha")
+  @@index([id_producto], map: "idx_movimiento_producto")
+  @@index([id_punto_venta], map: "idx_movimiento_punto_venta")
+  @@index([tipo_movimiento], map: "idx_movimiento_tipo")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model newsletter_suscriptores {
+  id_suscriptor BigInt    @id @default(autoincrement())
+  email         String    @unique @db.VarChar(120)
+  nombre        String?   @db.VarChar(80)
+  id_cliente    Int?
+  intereses     String[]  @default([]) @db.VarChar
+  idioma        String    @default("es") @db.VarChar(5)
+  confirmado    Boolean   @default(false)
+  token_confirm String?   @unique @db.VarChar(100)
+  fecha_confirm DateTime? @db.Timestamp(6)
+  activo        Boolean   @default(true)
+  fecha_baja    DateTime? @db.Timestamp(6)
+  motivo_baja   String?   @db.VarChar(80)
+  created_at    DateTime  @default(now()) @db.Timestamp(6)
+  CLIENTE       CLIENTE?  @relation(fields: [id_cliente], references: [id_cliente], onUpdate: NoAction)
+
+  @@index([email, activo], map: "idx_newsletter_email")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model notificaciones {
+  id                BigInt    @id @default(autoincrement())
+  id_usuario        Int
+  id_reserva        BigInt?
+  tipo_notificacion String    @db.VarChar(40)
+  canal             String    @default("email") @db.VarChar(20)
+  asunto            String?   @db.VarChar(255)
+  contenido_resumen String?
+  enviado_at        DateTime? @db.Timestamp(6)
+  estado_envio      String    @default("pendiente") @db.VarChar(20)
+  created_at        DateTime  @default(now()) @db.Timestamp(6)
+  RESERVA           RESERVA?  @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
+  USUARIO           USUARIO   @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_usuario, tipo_notificacion, enviado_at], map: "idx_notif_usuario")
+}
+
+model oferta_experiencia {
+  id             BigInt       @id @default(autoincrement())
+  oferta_id      BigInt
+  experiencia_id BigInt
+  experiencias   experiencias @relation(fields: [experiencia_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  ofertas        ofertas      @relation(fields: [oferta_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([oferta_id, experiencia_id], map: "uq_oferta_experiencia")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model oferta_tags {
+  oferta_id BigInt
+  tag_id    BigInt
+  ofertas   ofertas @relation(fields: [oferta_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tags      tags    @relation(fields: [tag_id], references: [id_tag], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([oferta_id, tag_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ofertas {
+  id                   BigInt               @id @default(autoincrement())
+  destino_id           BigInt?
+  id_viaje             Int?
+  titulo               String               @db.VarChar(150)
+  categoria            String               @db.VarChar(60)
+  descripcion          String?
+  precio_publicado     Decimal?             @db.Decimal(12, 2)
+  tipo_descuento       String               @default("porcentaje") @db.VarChar(20)
+  valor_descuento      Decimal              @default(0) @db.Decimal(10, 2)
+  etiqueta_promocional String?              @db.VarChar(60)
+  imagen_url           String?
+  fecha_inicio         DateTime             @db.Date
+  fecha_fin            DateTime             @db.Date
+  activa               Boolean              @default(true)
+  oferta_experiencia   oferta_experiencia[]
+  oferta_tags          oferta_tags[]
+  destinos             destinos?            @relation(fields: [destino_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  VIAJE                VIAJE?               @relation(fields: [id_viaje], references: [id_viaje], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([categoria, activa, fecha_inicio, fecha_fin], map: "idx_ofertas_vigentes")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pago_reserva {
+  id_pago             BigInt       @id @default(autoincrement())
+  id_reserva          BigInt
+  id_metodo           BigInt?
+  id_moneda           BigInt
+  monto               Decimal      @db.Decimal(12, 2)
+  fecha_pago          DateTime     @default(now()) @db.Timestamp(6)
+  referencia_bancaria String?      @unique(map: "unique_pago_referencia") @db.VarChar(100)
+  estado              String?      @default("Procesado") @db.VarChar(50)
+  notas               String?
+  MONEDA              MONEDA       @relation(fields: [id_moneda], references: [id_moneda], onDelete: NoAction, onUpdate: NoAction, map: "fk_pago_moneda")
+  RESERVA             RESERVA      @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "fk_pago_reserva")
+  METODO_PAGO         METODO_PAGO? @relation(fields: [id_metodo], references: [id_metodo], onUpdate: NoAction)
+
+  @@index([estado], map: "idx_pago_estado")
+  @@index([fecha_pago], map: "idx_pago_fecha")
+  @@index([id_metodo], map: "idx_pago_metodo")
+  @@index([id_reserva], map: "idx_pago_reserva")
+  @@index([id_reserva, estado], map: "idx_pago_reserva_estado")
+}
+
+model preferencias {
+  id                  BigInt                @id @default(autoincrement())
+  nombre              String                @db.VarChar(80)
+  categoria           String                @db.VarChar(60)
+  activa              Boolean               @default(true)
+  cliente_preferencia cliente_preferencia[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model preferencias_notificacion {
+  id                BigInt    @id @default(autoincrement())
+  id_usuario        Int       @unique
+  email_activo      Boolean   @default(true)
+  sms_activo        Boolean   @default(false)
+  push_activo       Boolean   @default(false)
+  whatsapp_activo   Boolean   @default(false)
+  notif_reserva     Boolean   @default(true)
+  notif_pago        Boolean   @default(true)
+  notif_checkin     Boolean   @default(true)
+  notif_ofertas     Boolean   @default(false)
+  notif_news        Boolean   @default(false)
+  notif_operacional Boolean   @default(true)
+  silencio_desde    DateTime? @db.Time(6)
+  silencio_hasta    DateTime? @db.Time(6)
+  updated_at        DateTime  @default(now()) @db.Timestamp(6)
+  USUARIO           USUARIO   @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model reclamo_sugerencia {
+  id_registro                                          BigInt    @id @default(autoincrement())
+  tipo                                                 String    @db.VarChar(50)
+  id_pasajero                                          BigInt?
+  id_empleado                                          BigInt?
+  fecha_registro                                       DateTime  @default(now()) @db.Timestamp(6)
+  descripcion                                          String
+  estado                                               String?   @default("Abierto") @db.VarChar(50)
+  prioridad                                            String?   @default("Media") @db.VarChar(20)
+  id_responsable                                       BigInt?
+  fecha_resolucion                                     DateTime? @db.Timestamp(6)
+  resolucion                                           String?
+  EMPLEADO_reclamo_sugerencia_id_empleadoToEMPLEADO    EMPLEADO? @relation("reclamo_sugerencia_id_empleadoToEMPLEADO", fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "fk_reclamo_empleado")
+  PASAJERO                                             PASAJERO? @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "fk_reclamo_pasajero")
+  EMPLEADO_reclamo_sugerencia_id_responsableToEMPLEADO EMPLEADO? @relation("reclamo_sugerencia_id_responsableToEMPLEADO", fields: [id_responsable], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction, map: "fk_reclamo_responsable")
+
+  @@index([fecha_registro, estado], map: "idx_reclamo_fecha_estado")
+  @@index([id_pasajero], map: "idx_reclamo_pasajero")
+  @@index([prioridad], map: "idx_reclamo_prioridad")
+  @@index([tipo], map: "idx_reclamo_tipo")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model reserva_experiencia {
+  id              BigInt       @id @default(autoincrement())
+  id_reserva      BigInt
+  id_experiencia  BigInt
+  cantidad        Int          @default(1)
+  precio_unitario Decimal      @default(0) @db.Decimal(10, 2)
+  subtotal        Decimal?     @default(dbgenerated("((cantidad)::numeric * precio_unitario)")) @db.Decimal(12, 2)
+  experiencias    experiencias @relation(fields: [id_experiencia], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  RESERVA         RESERVA      @relation(fields: [id_reserva], references: [id_reserva], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_reserva, id_experiencia], map: "uq_reserva_experiencia")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tags {
+  id_tag       BigInt         @id @default(autoincrement())
+  nombre       String         @unique @db.VarChar(60)
+  color_hex    String?        @db.VarChar(7)
+  activo       Boolean        @default(true)
+  destino_tags destino_tags[]
+  oferta_tags  oferta_tags[]
+
+  @@index([nombre], map: "idx_tags_nombre")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tarifas_viaje {
+  id                    BigInt          @id @default(autoincrement())
+  id_viaje              Int
+  id_tipo_habitacion    Int
+  ocupacion_min         Int             @default(1) @db.SmallInt
+  ocupacion_max         Int             @default(2) @db.SmallInt
+  moneda                String          @default("USD") @db.Char(3)
+  precio_base           Decimal         @db.Decimal(12, 2)
+  impuestos_estimados   Decimal         @default(0) @db.Decimal(12, 2)
+  fecha_inicio_vigencia DateTime        @db.Date
+  fecha_fin_vigencia    DateTime        @db.Date
+  canal_venta           String?         @db.VarChar(40)
+  TIPO_HABITACION       TIPO_HABITACION @relation(fields: [id_tipo_habitacion], references: [id_tipo_habitacion], onDelete: NoAction, onUpdate: NoAction)
+  VIAJE                 VIAJE           @relation(fields: [id_viaje], references: [id_viaje], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_viaje, id_tipo_habitacion, fecha_inicio_vigencia, fecha_fin_vigencia], map: "idx_tarifas_viaje")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model testimonios {
+  id              BigInt   @id @default(autoincrement())
+  id_cliente      Int?
+  id_viaje        Int?
+  nombre_mostrado String?  @db.VarChar(80)
+  texto           String
+  puntuacion      Int      @db.SmallInt
+  visible         Boolean  @default(false)
+  created_at      DateTime @default(now()) @db.Timestamp(6)
+  CLIENTE         CLIENTE? @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)
+  VIAJE           VIAJE?   @relation(fields: [id_viaje], references: [id_viaje], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ticket {
+  id_ticket        BigInt    @id @default(autoincrement())
+  id_pasajero      BigInt
+  codigo_qr        String    @unique @db.VarChar(255)
+  fecha_emision    DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
+  hora_facturacion DateTime? @db.Timestamp(6)
+  estado           String?   @default("Emitido") @db.VarChar(50)
+  PASAJERO         PASAJERO  @relation(fields: [id_pasajero], references: [id_pasajero], onDelete: NoAction, onUpdate: NoAction, map: "fk_ticket_pasajero")
+
+  @@unique([id_pasajero, codigo_qr], map: "unique_qr_por_pasajero")
+  @@index([id_pasajero], map: "idx_ticket_pasajero")
+  @@index([codigo_qr], map: "idx_ticket_qr")
+}
+
+model tipo_diagnostico {
+  id_tipo_diagnostico BigInt        @id @default(autoincrement())
+  nombre              String        @db.VarChar(80)
+  descripcion         String?
+  DIAGNOSTICO         DIAGNOSTICO[]
+}
+
+model tipo_plan {
+  id_tipo_plan    BigInt    @id @default(autoincrement())
+  nombre          String    @db.VarChar(80)
+  descripcion     String?
+  incluye_bebidas Boolean   @default(false)
+  activo          Boolean   @default(true)
+  RESERVA         RESERVA[]
+}
+
+model tipo_tratamiento {
+  id_tipo_tratamiento BigInt        @id @default(autoincrement())
+  nombre              String        @db.VarChar(80)
+  descripcion         String?
+  TRATAMIENTO         TRATAMIENTO[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model transaccion {
+  id_transaccion       BigInt           @id @default(autoincrement())
+  id_folio             BigInt
+  id_tipo_transaccion  BigInt
+  monto                Decimal          @db.Decimal(12, 2)
+  descripcion          String           @db.VarChar(255)
+  fecha_hora           DateTime         @default(now()) @db.Timestamp(6)
+  id_empleado_registro BigInt?
+  punto_venta          String?          @db.VarChar(100)
+  estado               String?          @default("Procesado") @db.VarChar(50)
+  referencia_interna   String?          @db.VarChar(100)
+  conciliacion         conciliacion?
+  EMPLEADO             EMPLEADO?        @relation(fields: [id_empleado_registro], references: [id_empleado], onUpdate: NoAction)
+  FOLIO_PASAJERO       FOLIO_PASAJERO   @relation(fields: [id_folio], references: [id_folio], onDelete: Cascade, onUpdate: NoAction)
+  TIPO_TRANSACCION     TIPO_TRANSACCION @relation(fields: [id_tipo_transaccion], references: [id_tipo_transaccion], onUpdate: NoAction)
+
+  @@index([estado], map: "idx_transaccion_estado")
+  @@index([fecha_hora], map: "idx_transaccion_fecha")
+  @@index([id_folio], map: "idx_transaccion_folio")
+  @@index([id_tipo_transaccion], map: "idx_transaccion_tipo")
+}
+
+model transfusion {
+  id_transfusion     BigInt           @id @default(autoincrement())
+  id_historial       BigInt
+  tipo_componente    String           @db.VarChar(50)
+  fecha_transfusion  DateTime         @default(now()) @db.Timestamp(6)
+  motivo_transfusion String
+  cod_procedimiento  String?          @db.VarChar(50)
+  volumen_ml         Int?
+  reacciones         String?
+  id_medico          BigInt?
+  HISTORIAL_MEDICO   HISTORIAL_MEDICO @relation(fields: [id_historial], references: [id_historial], onDelete: NoAction, onUpdate: NoAction, map: "fk_transfusion_historial")
+  MEDICO             MEDICO?          @relation(fields: [id_medico], references: [id_medico], onDelete: NoAction, onUpdate: NoAction, map: "fk_transfusion_medico")
+
+  @@index([fecha_transfusion], map: "idx_transfusion_fecha")
+  @@index([id_historial], map: "idx_transfusion_historial")
+}
+
+model traslado {
+  id_traslado     BigInt   @id @default(autoincrement())
+  id_reserva      BigInt
+  tipo_transporte String   @db.VarChar(50)
+  fecha_hora      DateTime @db.Timestamp(6)
+  costo           Decimal? @default(0.00) @db.Decimal(12, 2)
+  estado          String?  @default("Programado") @db.VarChar(50)
+  proveedor       String?  @db.VarChar(100)
+  origen          String?  @db.VarChar(150)
+  destino         String?  @db.VarChar(150)
+  notas           String?
+  RESERVA         RESERVA  @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "fk_traslado_reserva")
+
+  @@unique([id_reserva, fecha_hora, tipo_transporte], map: "unique_traslado_por_reserva_fecha")
+  @@index([estado], map: "idx_traslado_estado")
+  @@index([fecha_hora], map: "idx_traslado_fecha")
+  @@index([id_reserva], map: "idx_traslado_reserva")
 }
