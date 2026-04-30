@@ -678,8 +678,8 @@ model RESERVA {
 
 model ROL {
   id_rol     Int       @id @default(autoincrement())
-  nombre_rol String?   @unique @db.VarChar
-  permisos   Json?
+  nombre_rol String    @unique @db.VarChar
+  permisos   Json?     @default("{}")
   USUARIO    USUARIO[]
 }
 
@@ -769,10 +769,10 @@ model USUARIO {
   id_usuario                Int                        @id @default(autoincrement())
   id_empleado               BigInt?                    @unique
   username                  String?                    @unique @db.VarChar
-  password_hash             String?                    @db.VarChar
-  id_rol                    Int?
-  email                     String?                    @db.VarChar(255)
-  estado_cuenta             String                     @default("activo") @db.VarChar(20)
+  password_hash             String                     @db.VarChar
+  id_rol                    Int                        @default(2)
+  email                     String                     @unique(map: "idx_usuario_email_unique") @db.VarChar(255)
+  estado_cuenta             estado_usuario
   ultimo_login_at           DateTime?                  @db.Timestamp(6)
   es_cliente                Boolean                    @default(false)
   id_cliente                Int?
@@ -781,11 +781,11 @@ model USUARIO {
   two_factor_enabled        Boolean                    @default(false)
   two_factor_secret         String?
   idioma                    String                     @default("es") @db.VarChar(5)
-  zona_horaria              String                     @default("America/Santo_Domingo") @db.VarChar(60)
+  zona_horaria              String                     @default("UTC") @db.VarChar(60)
   intentos_fallidos         Int                        @default(0) @db.SmallInt
   bloqueado_hasta           DateTime?                  @db.Timestamp(6)
+  ROL                       ROL                        @relation(fields: [id_rol], references: [id_rol], onDelete: NoAction, onUpdate: NoAction, map: "USUARIO_ROL_FK")
   EMPLEADO                  EMPLEADO?                  @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
-  ROL                       ROL?                       @relation(fields: [id_rol], references: [id_rol], onDelete: NoAction, onUpdate: NoAction)
   CLIENTE                   CLIENTE?                   @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "fk_usuario_cliente")
   metodos_pago_usuario      metodos_pago_usuario[]
   notificaciones            notificaciones[]
@@ -793,6 +793,7 @@ model USUARIO {
   sesiones_usuario          sesiones_usuario[]
 
   @@index([idioma], map: "idx_usuario_idioma")
+  @@index([id_rol], map: "idx_usuario_rol")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1612,4 +1613,10 @@ model sesiones_usuario {
   USUARIO       USUARIO  @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([id_usuario, activa], map: "idx_sesiones_usuario")
+}
+
+enum estado_usuario {
+  activo
+  inactivo
+  bloqueado
 }
