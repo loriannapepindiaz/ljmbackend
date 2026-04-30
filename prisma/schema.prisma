@@ -136,7 +136,7 @@ model CLIENTE {
   avatar_url              String?
   created_at              DateTime                  @default(now()) @db.Timestamp(6)
   updated_at              DateTime                  @default(now()) @db.Timestamp(6)
-  loyalty_tier_label      String?                   @default(dbgenerated("\nCASE loyalty_tier\n    WHEN 'Explorer'::text THEN 'Plata'::character varying\n    WHEN 'Voyager'::text THEN 'Oro'::character varying\n    WHEN 'Admiral'::text THEN 'Élite Platino'::character varying\n    WHEN 'Commodore'::text THEN 'Diamante'::character varying\n    ELSE loyalty_tier\nEND")) @db.VarChar(30)
+  loyalty_tier_label      String?                   @default(dbgenerated("\nCASE loyalty_tier\n    WHEN 'Explorer'::text THEN 'Explorador'::text\n    WHEN 'Voyager'::text THEN 'Miembro Oro'::text\n    WHEN 'Navigator'::text THEN 'Navegante'::text\n    WHEN 'Admiral'::text THEN 'Almirante'::text\n    ELSE 'Explorador'::text\nEND")) @db.VarChar(30)
   DIRECCION               DIRECCION?                @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction)
   PASAJERO                PASAJERO[]
   RESERVA                 RESERVA[]
@@ -160,31 +160,33 @@ model COMPENSACION {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model CRUCERO {
-  id_crucero              Int                @id @default(autoincrement())
-  nombre                  String?            @db.VarChar
-  registro_maritimo       String?            @unique @db.VarChar
+  id_crucero              Int                       @id @default(autoincrement())
+  nombre                  String?                   @db.VarChar
+  registro_maritimo       String?                   @unique @db.VarChar
   capacidad_max_pasajeros Int?
   id_tipo_crucero         Int?
   descripcion             String?
-  activo                  Boolean            @default(true)
-  ambiente                String?            @db.VarChar(30)
-  anio_fabricacion        Int?               @db.SmallInt
-  velocidad_nudos         Decimal?           @db.Decimal(5, 2)
-  eslora_metros           Decimal?           @db.Decimal(7, 2)
-  tonelaje                Decimal?           @db.Decimal(12, 2)
+  activo                  Boolean                   @default(true)
+  ambiente                String?                   @db.VarChar(30)
+  anio_fabricacion        Int?                      @db.SmallInt
+  velocidad_nudos         Decimal?                  @db.Decimal(5, 2)
+  eslora_metros           Decimal?                  @db.Decimal(7, 2)
+  tonelaje                Decimal?                  @db.Decimal(12, 2)
   video_url               String?
   imagen_portada_url      String?
   capacidad_tripulacion   Int?
-  numero_cubiertas        Int?               @db.SmallInt
-  bandera                 String?            @db.VarChar(60)
-  TIPO_CRUCERO            TIPO_CRUCERO?      @relation(fields: [id_tipo_crucero], references: [id_tipo_crucero], onDelete: NoAction, onUpdate: NoAction)
+  numero_cubiertas        Int?                      @db.SmallInt
+  bandera                 String?                   @db.VarChar(60)
+  TIPO_CRUCERO            TIPO_CRUCERO?             @relation(fields: [id_tipo_crucero], references: [id_tipo_crucero], onDelete: NoAction, onUpdate: NoAction)
   CUBIERTA                CUBIERTA[]
   MANTENIMIENTO           MANTENIMIENTO[]
   PUNTO_VENTA             PUNTO_VENTA[]
   VIAJE                   VIAJE[]
   catering                catering[]
+  crucero_tipo_habitacion crucero_tipo_habitacion[]
   farmacia                farmacia[]
   imagenes_crucero        imagenes_crucero[]
+  instalaciones_crucero   instalaciones_crucero[]
 
   @@index([activo, anio_fabricacion], map: "idx_crucero_activo")
 }
@@ -258,6 +260,7 @@ model DIRECCION {
   AGENTE_VIAJE  AGENTE_VIAJE[]
   CLIENTE       CLIENTE[]
   CIUDAD        CIUDAD?        @relation(fields: [id_ciudad], references: [id_ciudad], onDelete: NoAction, onUpdate: NoAction)
+  EMPLEADO      EMPLEADO[]
   PROVEEDOR     PROVEEDOR[]
 }
 
@@ -296,11 +299,13 @@ model EMPLEADO {
   seguro_medico                                                  String?                 @db.VarChar(120)
   salario_base                                                   Decimal?                @db.Decimal(12, 2)
   email                                                          String?                 @db.VarChar(120)
+  id_direccion                                                   Int?
   ASIGNACION_HORARIO                                             ASIGNACION_HORARIO[]
   ASIGNACION_VIAJE                                               ASIGNACION_VIAJE[]
   CERTIFICACION                                                  CERTIFICACION[]
   CARGO                                                          CARGO?                  @relation(fields: [id_cargo], references: [id_cargo], onDelete: NoAction, onUpdate: NoAction)
   DEPARTAMENTO                                                   DEPARTAMENTO?           @relation(fields: [id_departamento], references: [id_departamento], onDelete: NoAction, onUpdate: NoAction)
+  DIRECCION                                                      DIRECCION?              @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction)
   PUERTO                                                         PUERTO?                 @relation(fields: [puerto_base_id], references: [id_puerto], onDelete: NoAction, onUpdate: NoAction)
   HISTORIAL_SALARIO                                              HISTORIAL_SALARIO[]
   MAYORDOMO_HABITACION                                           MAYORDOMO_HABITACION[]
@@ -645,6 +650,8 @@ model RESERVA {
   observaciones        String?
   id_moneda            BigInt?
   id_tipo_plan         BigInt?
+  numero_habitaciones  Int                    @default(1) @db.SmallInt
+  mascotas             Boolean                @default(false)
   APLICACION_DESCUENTO APLICACION_DESCUENTO[]
   ASIGNACION_CABINA    ASIGNACION_CABINA[]
   CANCELACION          CANCELACION[]
@@ -712,17 +719,18 @@ model TIPO_FACTURA {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model TIPO_HABITACION {
-  id_tipo_habitacion    Int             @id @default(autoincrement())
-  nombre                String?         @unique @db.VarChar
-  descripcion           String?         @db.VarChar
-  capacidad_max         Int?
-  precio_noche          Decimal?        @db.Decimal(10, 2)
-  tamano_m2             Decimal?        @db.Decimal(7, 2)
-  capacidad_ninos       Int             @default(0)
-  imagen_url            String?
-  estado_disponibilidad String          @default("disponible") @db.VarChar(20)
-  HABITACION            HABITACION[]
-  tarifas_viaje         tarifas_viaje[]
+  id_tipo_habitacion      Int                       @id @default(autoincrement())
+  nombre                  String?                   @unique @db.VarChar
+  descripcion             String?                   @db.VarChar
+  capacidad_max           Int?
+  precio_noche            Decimal?                  @db.Decimal(10, 2)
+  tamano_m2               Decimal?                  @db.Decimal(7, 2)
+  capacidad_ninos         Int                       @default(0)
+  imagen_url              String?
+  estado_disponibilidad   String                    @default("disponible") @db.VarChar(20)
+  HABITACION              HABITACION[]
+  crucero_tipo_habitacion crucero_tipo_habitacion[]
+  tarifas_viaje           tarifas_viaje[]
 }
 
 model TIPO_PROVEEDOR {
@@ -782,6 +790,7 @@ model USUARIO {
   metodos_pago_usuario      metodos_pago_usuario[]
   notificaciones            notificaciones[]
   preferencias_notificacion preferencias_notificacion?
+  sesiones_usuario          sesiones_usuario[]
 
   @@index([idioma], map: "idx_usuario_idioma")
 }
@@ -967,23 +976,31 @@ model destino_tags {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model destinos {
-  id              BigInt         @id @default(autoincrement())
-  region          String         @db.VarChar(80)
-  titulo          String         @db.VarChar(150)
-  ubicacion       String         @db.VarChar(150)
-  descripcion     String?
-  rating_promedio Decimal?       @db.Decimal(3, 1)
-  imagen_url      String?
-  activo          Boolean        @default(true)
-  created_at      DateTime       @default(now()) @db.Timestamp(6)
-  pais            String?        @db.VarChar(80)
-  precio_desde    Decimal?       @db.Decimal(10, 2)
-  moneda          String         @default("USD") @db.Char(3)
-  video_url       String?
-  galeria_urls    String[]       @default([])
-  VIAJE           VIAJE[]
-  destino_tags    destino_tags[]
-  ofertas         ofertas[]
+  id                  BigInt         @id @default(autoincrement())
+  region              String         @db.VarChar(80)
+  titulo              String         @db.VarChar(150)
+  ubicacion           String         @db.VarChar(150)
+  descripcion         String?
+  rating_promedio     Decimal?       @db.Decimal(3, 1)
+  imagen_url          String?
+  activo              Boolean        @default(true)
+  created_at          DateTime       @default(now()) @db.Timestamp(6)
+  pais                String?        @db.VarChar(80)
+  precio_desde        Decimal?       @db.Decimal(10, 2)
+  moneda              String         @default("USD") @db.Char(3)
+  video_url           String?
+  galeria_urls        String[]       @default([])
+  clima               String?        @db.VarChar(200)
+  duracion_tipica     String?        @db.VarChar(50)
+  highlights          String[]       @default([])
+  idioma              String?        @db.VarChar(80)
+  incluye             String[]       @default([])
+  puerto_principal    String?        @db.VarChar(150)
+  mostrar_en_home     Boolean?       @default(false)
+  mostrar_en_carrusel Boolean?       @default(false)
+  VIAJE               VIAJE[]
+  destino_tags        destino_tags[]
+  ofertas             ofertas[]
 
   @@index([pais, activo], map: "idx_destinos_pais")
   @@index([region], map: "idx_destinos_region")
@@ -1326,7 +1343,7 @@ model pago_reserva {
   monto               Decimal      @db.Decimal(12, 2)
   fecha_pago          DateTime     @default(now()) @db.Timestamp(6)
   referencia_bancaria String?      @unique(map: "unique_pago_referencia") @db.VarChar(100)
-  estado              String?      @default("Procesado") @db.VarChar(50)
+  estado              String?      @default("Pagado") @db.VarChar(50)
   notas               String?
   MONEDA              MONEDA       @relation(fields: [id_moneda], references: [id_moneda], onDelete: NoAction, onUpdate: NoAction, map: "fk_pago_moneda")
   RESERVA             RESERVA      @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "fk_pago_reserva")
@@ -1448,6 +1465,7 @@ model testimonios {
   puntuacion      Int      @db.SmallInt
   visible         Boolean  @default(false)
   created_at      DateTime @default(now()) @db.Timestamp(6)
+  email           String?  @db.VarChar(120)
   CLIENTE         CLIENTE? @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction)
   VIAJE           VIAJE?   @relation(fields: [id_viaje], references: [id_viaje], onDelete: NoAction, onUpdate: NoAction)
 }
@@ -1546,4 +1564,52 @@ model traslado {
   @@index([estado], map: "idx_traslado_estado")
   @@index([fecha_hora], map: "idx_traslado_fecha")
   @@index([id_reserva], map: "idx_traslado_reserva")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model crucero_tipo_habitacion {
+  id                  Int             @id @default(autoincrement())
+  id_crucero          Int
+  id_tipo_habitacion  Int
+  cabinas_disponibles Int             @default(0) @db.SmallInt
+  precio_override     Decimal?        @db.Decimal(12, 2)
+  activa              Boolean         @default(true)
+  CRUCERO             CRUCERO         @relation(fields: [id_crucero], references: [id_crucero], onDelete: Cascade, onUpdate: NoAction)
+  TIPO_HABITACION     TIPO_HABITACION @relation(fields: [id_tipo_habitacion], references: [id_tipo_habitacion], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_crucero, id_tipo_habitacion])
+  @@index([id_crucero], map: "idx_cth_crucero")
+  @@index([id_tipo_habitacion], map: "idx_cth_tipo")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model instalaciones_crucero {
+  id          Int      @id @default(autoincrement())
+  id_crucero  Int
+  nombre      String   @db.VarChar(120)
+  icono       String?  @db.VarChar(80)
+  descripcion String?
+  activa      Boolean  @default(true)
+  orden       Int      @default(0) @db.SmallInt
+  created_at  DateTime @default(now()) @db.Timestamp(6)
+  updated_at  DateTime @default(now()) @db.Timestamp(6)
+  CRUCERO     CRUCERO  @relation(fields: [id_crucero], references: [id_crucero], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_crucero], map: "idx_instalaciones_crucero_id")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model sesiones_usuario {
+  id            BigInt   @id @default(autoincrement())
+  id_usuario    Int
+  ip            String?  @db.VarChar(45)
+  user_agent    String?
+  dispositivo   String?  @db.VarChar(100)
+  created_at    DateTime @default(now()) @db.Timestamp(6)
+  ultimo_acceso DateTime @default(now()) @db.Timestamp(6)
+  activa        Boolean  @default(true)
+  token_hash    String?  @db.VarChar(255)
+  USUARIO       USUARIO  @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_usuario, activa], map: "idx_sesiones_usuario")
 }
