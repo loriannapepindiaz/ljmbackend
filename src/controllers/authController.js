@@ -1,4 +1,4 @@
-import { getUserById, loginClientUser, registerClientUser } from "../services/authService.js";
+import { getUserById, loginAdminUser, loginClientUser, registerClientUser } from "../services/authService.js";
 import { HttpError } from "../utils/httpError.js";
 
 const isValidEmail = (email) => /\S+@\S+\.\S+/.test(email);
@@ -48,6 +48,20 @@ export const login = async (req, res, next) => {
     res.json({
       ok: true,
       message: "Inicio de sesión correcto.",
+      ...result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const adminLogin = async (req, res, next) => {
+  try {
+    validateLoginBody(req.body);
+    const result = await loginAdminUser(req.body);
+    res.json({
+      ok: true,
+      message: "Inicio de sesiÃ³n administrativo correcto.",
       ...result,
     });
   } catch (error) {

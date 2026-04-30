@@ -33,12 +33,33 @@ const sanitizeUser = (user) => ({
     : null,
 });
 
+const ADMIN_ROLE_NAMES = new Set([
+  "admin",
+  "admins",
+  "administrador",
+  "administradora",
+  "super admin",
+  "superadmin",
+  "administrator",
+]);
+
+const isAdminRole = (roleName) => {
+  if (!roleName) {
+    return false;
+  }
+
+  const role = normalizeLogin(roleName);
+
+  return ADMIN_ROLE_NAMES.has(role) || role.includes("admin");
+};
+
 const getClientRoleId = async () => {
   const role = await prisma.rOL.findFirst({
     where: {
       OR: [
         { nombre_rol: { equals: "cliente", mode: "insensitive" } },
         { nombre_rol: { equals: "usuario", mode: "insensitive" } },
+        { nombre_rol: { equals: "user", mode: "insensitive" } },
         { nombre_rol: { contains: "client", mode: "insensitive" } },
       ],
     },
@@ -93,8 +114,16 @@ export const registerClientUser = async ({ fullName, email, password }) => {
         email: cleanEmail,
         password_hash: passwordHash,
         es_cliente: true,
-        id_cliente: client.id_cliente,
-        id_rol: clientRoleId,
+        CLIENTE: {
+          connect: { id_cliente: client.id_cliente },
+        },
+        ...(clientRoleId
+          ? {
+              ROL: {
+                connect: { id_rol: clientRoleId },
+              },
+            }
+          : {}),
         estado_cuenta: "activo",
       },
       include: {
@@ -156,6 +185,57 @@ export const loginClientUser = async ({ username, password }) => {
 
   if (!isValidPassword) {
     throw new HttpError(401, "Credenciales incorrectas.");
+  }
+
+  const updatedUser = await prisma.uSUARIO.update({
+    where: { id_usuario: user.id_usuario },
+    data: {
+      ultimo_login_at: new Date(),
+      intentos_fallidos: 0,
+    },
+    include: {
+      CLIENTE: true,
+      ROL: true,
+    },
+  });
+
+  return {
+    token: createAuthToken(updatedUser),
+    user: sanitizeUser(updatedUser),
+  };
+};
+
+export const loginAdminUser = async ({ username, password }) => {
+  const login = normalizeLogin(username);
+  const loginAsNumber = Number(login);
+  const canSearchById = Number.isInteger(loginAsNumber) && loginAsNumber > 0;
+
+  const user = await prisma.uSUARIO.findFirst({
+    where: {
+      OR: [
+        { username: { equals: login, mode: "insensitive" } },
+        { email: { equals: login, mode: "insensitive" } },
+        ...(canSearchById ? [{ id_usuario: loginAsNumber }] : []),
+      ],
+    },
+    include: {
+      CLIENTE: true,
+      ROL: true,
+    },
+  });
+
+  if (!user || !user.password_hash || !isAdminRole(user.ROL?.nombre_rol)) {
+    throw new HttpError(401, "Credenciales de administrador incorrectas.");
+  }
+
+  if (user.estado_cuenta !== "activo") {
+    throw new HttpError(403, "Esta cuenta administrativa no estÃ¡ activa.");
+  }
+
+  const isValidPassword = await comparePassword(password, user.password_hash);
+
+  if (!isValidPassword) {
+    throw new HttpError(401, "Credenciales de administrador incorrectas.");
   }
 
   const updatedUser = await prisma.uSUARIO.update({
