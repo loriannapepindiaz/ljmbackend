@@ -1,5 +1,8 @@
 import prisma from "../../prismaClient.js";
 
+/** @type {"insensitive"} */
+const INSENSITIVE_MODE = "insensitive";
+
 const serialize = (data) =>
   JSON.parse(JSON.stringify(data, (_key, value) =>
     typeof value === "bigint" ? value.toString() : value
@@ -28,10 +31,10 @@ const buildNameFilter = (nombre) => {
 
   return {
     OR: [
-      { nombre: { contains: nombre, mode: "insensitive" } },
+      { nombre: { contains: nombre, mode: INSENSITIVE_MODE } },
       {
         AND: words.map((word) => ({
-          nombre: { contains: word, mode: "insensitive" },
+          nombre: { contains: word, mode: INSENSITIVE_MODE },
         })),
       },
     ],

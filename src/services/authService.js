@@ -2,6 +2,9 @@ import prisma from "../../prismaClient.js";
 import { comparePassword, createAuthToken, hashPassword } from "../utils/auth.js";
 import { HttpError } from "../utils/httpError.js";
 
+/** @type {"insensitive"} */
+const INSENSITIVE_MODE = "insensitive";
+
 const normalizeEmail = (email) => email.trim().toLowerCase();
 
 const normalizeLogin = (value) => value.trim().replace(/\s+/g, " ").toLowerCase();
@@ -57,10 +60,10 @@ const getClientRoleId = async () => {
   const role = await prisma.rOL.findFirst({
     where: {
       OR: [
-        { nombre_rol: { equals: "cliente", mode: "insensitive" } },
-        { nombre_rol: { equals: "usuario", mode: "insensitive" } },
-        { nombre_rol: { equals: "user", mode: "insensitive" } },
-        { nombre_rol: { contains: "client", mode: "insensitive" } },
+        { nombre_rol: { equals: "cliente", mode: INSENSITIVE_MODE } },
+        { nombre_rol: { equals: "usuario", mode: INSENSITIVE_MODE } },
+        { nombre_rol: { equals: "user", mode: INSENSITIVE_MODE } },
+        { nombre_rol: { contains: "client", mode: INSENSITIVE_MODE } },
       ],
     },
     select: { id_rol: true },
@@ -149,15 +152,15 @@ export const loginClientUser = async ({ username, password }) => {
     ? {
         CLIENTE: {
           is: {
-            nombre: { equals: nombre, mode: "insensitive" },
-            apellido: { equals: apellido, mode: "insensitive" },
+            nombre: { equals: nombre, mode: INSENSITIVE_MODE },
+            apellido: { equals: apellido, mode: INSENSITIVE_MODE },
           },
         },
       }
     : {
         CLIENTE: {
           is: {
-            nombre: { equals: nombre, mode: "insensitive" },
+            nombre: { equals: nombre, mode: INSENSITIVE_MODE },
           },
         },
       };
@@ -213,8 +216,8 @@ export const loginAdminUser = async ({ username, password }) => {
   const user = await prisma.uSUARIO.findFirst({
     where: {
       OR: [
-        { username: { equals: login, mode: "insensitive" } },
-        { email: { equals: login, mode: "insensitive" } },
+        { username: { equals: login, mode: INSENSITIVE_MODE } },
+        { email: { equals: login, mode: INSENSITIVE_MODE } },
         ...(canSearchById ? [{ id_usuario: loginAsNumber }] : []),
       ],
     },

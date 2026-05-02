@@ -1,0 +1,15 @@
+{
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/schema-backup.prisma": true,
+    "**/*.backup.prisma": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/schema-backup.prisma": true,
+    "**/*.backup.prisma": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true
+  }
+}

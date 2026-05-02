@@ -177,6 +177,10 @@ model CRUCERO {
   capacidad_tripulacion   Int?
   numero_cubiertas        Int?                      @db.SmallInt
   bandera                 String?                   @db.VarChar(60)
+  fleet_id                Int?
+  num_restaurantes        Int?                      @default(0) @db.SmallInt
+  num_bares               Int?                      @default(0) @db.SmallInt
+  ruta_descripcion        String?                   @db.VarChar(255)
   TIPO_CRUCERO            TIPO_CRUCERO?             @relation(fields: [id_tipo_crucero], references: [id_tipo_crucero], onDelete: NoAction, onUpdate: NoAction)
   CUBIERTA                CUBIERTA[]
   MANTENIMIENTO           MANTENIMIENTO[]
@@ -280,47 +284,49 @@ model DOCUMENTO {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model EMPLEADO {
-  id_empleado                                                    BigInt                  @id @default(autoincrement())
-  nombre                                                         String?                 @db.VarChar
-  apellido                                                       String?                 @db.VarChar
-  fecha_nac                                                      DateTime?               @db.Date
-  id_cargo                                                       Int?
-  id_departamento                                                Int?
-  fecha_contrato                                                 DateTime?               @db.Date
-  estado_empleado                                                String                  @default("activo") @db.VarChar(20)
-  foto_url                                                       String?
-  nacionalidad                                                   String?                 @db.VarChar(60)
-  numero_identificacion                                          String?                 @db.VarChar(40)
-  telefono                                                       String?                 @db.VarChar(20)
-  contacto_emergencia                                            Json?
-  tipo_contrato                                                  String?                 @db.VarChar(30)
-  turno_rotacion                                                 String?                 @db.VarChar(60)
-  puerto_base_id                                                 BigInt?
-  seguro_medico                                                  String?                 @db.VarChar(120)
-  salario_base                                                   Decimal?                @db.Decimal(12, 2)
-  email                                                          String?                 @db.VarChar(120)
-  id_direccion                                                   Int?
-  ASIGNACION_HORARIO                                             ASIGNACION_HORARIO[]
-  ASIGNACION_VIAJE                                               ASIGNACION_VIAJE[]
-  CERTIFICACION                                                  CERTIFICACION[]
-  CARGO                                                          CARGO?                  @relation(fields: [id_cargo], references: [id_cargo], onDelete: NoAction, onUpdate: NoAction)
-  DEPARTAMENTO                                                   DEPARTAMENTO?           @relation(fields: [id_departamento], references: [id_departamento], onDelete: NoAction, onUpdate: NoAction)
-  DIRECCION                                                      DIRECCION?              @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction)
-  PUERTO                                                         PUERTO?                 @relation(fields: [puerto_base_id], references: [id_puerto], onDelete: NoAction, onUpdate: NoAction)
-  HISTORIAL_SALARIO                                              HISTORIAL_SALARIO[]
-  MAYORDOMO_HABITACION                                           MAYORDOMO_HABITACION[]
-  MEDICO                                                         MEDICO?
-  TAREA_MANTENIMIENTO                                            TAREA_MANTENIMIENTO[]
-  USUARIO                                                        USUARIO?
-  auditoria                                                      auditoria[]
-  checkout                                                       checkout[]
-  conciliacion                                                   conciliacion[]
-  consulta                                                       consulta[]
-  emergencia                                                     emergencia[]
-  movimiento_inventario                                          movimiento_inventario[]
-  reclamo_sugerencia_reclamo_sugerencia_id_empleadoToEMPLEADO    reclamo_sugerencia[]    @relation("reclamo_sugerencia_id_empleadoToEMPLEADO")
-  reclamo_sugerencia_reclamo_sugerencia_id_responsableToEMPLEADO reclamo_sugerencia[]    @relation("reclamo_sugerencia_id_responsableToEMPLEADO")
-  transaccion                                                    transaccion[]
+  id_empleado                                                      BigInt                  @id @default(autoincrement())
+  nombre                                                           String?                 @db.VarChar
+  apellido                                                         String?                 @db.VarChar
+  fecha_nac                                                        DateTime?               @db.Date
+  id_cargo                                                         Int?
+  id_departamento                                                  Int?
+  fecha_contrato                                                   DateTime?               @db.Date
+  estado_empleado                                                  String                  @default("activo") @db.VarChar(20)
+  foto_url                                                         String?
+  nacionalidad                                                     String?                 @db.VarChar(60)
+  numero_identificacion                                            String?                 @db.VarChar(40)
+  telefono                                                         String?                 @db.VarChar(20)
+  contacto_emergencia                                              Json?
+  tipo_contrato                                                    String?                 @db.VarChar(30)
+  turno_rotacion                                                   String?                 @db.VarChar(60)
+  puerto_base_id                                                   BigInt?
+  seguro_medico                                                    String?                 @db.VarChar(120)
+  salario_base                                                     Decimal?                @db.Decimal(12, 2)
+  email                                                            String?                 @db.VarChar(120)
+  id_direccion                                                     Int?
+  ASIGNACION_HORARIO                                               ASIGNACION_HORARIO[]
+  ASIGNACION_VIAJE                                                 ASIGNACION_VIAJE[]
+  CERTIFICACION                                                    CERTIFICACION[]
+  CARGO                                                            CARGO?                  @relation(fields: [id_cargo], references: [id_cargo], onDelete: NoAction, onUpdate: NoAction)
+  DEPARTAMENTO                                                     DEPARTAMENTO?           @relation(fields: [id_departamento], references: [id_departamento], onDelete: NoAction, onUpdate: NoAction)
+  DIRECCION                                                        DIRECCION?              @relation(fields: [id_direccion], references: [id_direccion], onDelete: NoAction, onUpdate: NoAction)
+  PUERTO                                                           PUERTO?                 @relation(fields: [puerto_base_id], references: [id_puerto], onDelete: NoAction, onUpdate: NoAction)
+  HISTORIAL_SALARIO                                                HISTORIAL_SALARIO[]
+  MAYORDOMO_HABITACION                                             MAYORDOMO_HABITACION[]
+  MEDICO                                                           MEDICO?
+  TAREA_MANTENIMIENTO                                              TAREA_MANTENIMIENTO[]
+  USUARIO                                                          USUARIO?
+  auditoria                                                        auditoria[]
+  checkout                                                         checkout[]
+  conciliacion                                                     conciliacion[]
+  consulta                                                         consulta[]
+  emergencia                                                       emergencia[]
+  movimiento_inventario                                            movimiento_inventario[]
+  reclamo_sugerencia_reclamo_sugerencia_id_empleadoToEMPLEADO      reclamo_sugerencia[]    @relation("reclamo_sugerencia_id_empleadoToEMPLEADO")
+  reclamo_sugerencia_reclamo_sugerencia_id_responsableToEMPLEADO   reclamo_sugerencia[]    @relation("reclamo_sugerencia_id_responsableToEMPLEADO")
+  rendimiento_empleado_rendimiento_empleado_id_empleadoToEMPLEADO  rendimiento_empleado[]  @relation("rendimiento_empleado_id_empleadoToEMPLEADO")
+  rendimiento_empleado_rendimiento_empleado_id_evaluadorToEMPLEADO rendimiento_empleado[]  @relation("rendimiento_empleado_id_evaluadorToEMPLEADO")
+  transaccion                                                      transaccion[]
 
   @@index([estado_empleado], map: "idx_empleado_estado")
   @@index([puerto_base_id], map: "idx_empleado_puerto_base")
@@ -450,8 +456,13 @@ model MANTENIMIENTO {
   fecha_fin_estimada  DateTime?             @db.Date
   estado              String?               @db.VarChar
   tipo_mantenimiento  String?               @db.VarChar
+  fecha_fin_real      DateTime?             @db.Date
+  es_inspeccion       Boolean               @default(false)
+  responsable_id      BigInt?
   CRUCERO             CRUCERO?              @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
   TAREA_MANTENIMIENTO TAREA_MANTENIMIENTO[]
+
+  @@index([id_crucero, es_inspeccion, fecha_fin_real(sort: Desc)], map: "idx_mantenimiento_crucero_inspeccion")
 }
 
 model MAYORDOMO_HABITACION {
@@ -784,6 +795,7 @@ model USUARIO {
   zona_horaria              String                     @default("UTC") @db.VarChar(60)
   intentos_fallidos         Int                        @default(0) @db.SmallInt
   bloqueado_hasta           DateTime?                  @db.Timestamp(6)
+  avatar_url                String?
   ROL                       ROL                        @relation(fields: [id_rol], references: [id_rol], onDelete: NoAction, onUpdate: NoAction, map: "USUARIO_ROL_FK")
   EMPLEADO                  EMPLEADO?                  @relation(fields: [id_empleado], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
   CLIENTE                   CLIENTE?                   @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "fk_usuario_cliente")
@@ -822,6 +834,7 @@ model VIAJE {
   testimonios          testimonios[]
 
   @@index([destino_id, fecha_salida_real], map: "idx_viaje_destino_salida")
+  @@index([fecha_salida_real], map: "idx_viaje_fecha_salida")
 }
 
 model auditoria {
@@ -1111,6 +1124,13 @@ model experiencias {
   categoria           String                @db.VarChar(60)
   imagen_url          String?
   activa              Boolean               @default(true)
+  subtitulo           String?
+  descripcion_larga   String?
+  imagen_hero         String?
+  duracion            String?               @db.VarChar(50)
+  nivel               String?               @db.VarChar(50)
+  incluye             String[]
+  galeria             String[]
   oferta_experiencia  oferta_experiencia[]
   reserva_experiencia reserva_experiencia[]
 }
@@ -1355,6 +1375,7 @@ model pago_reserva {
   @@index([id_metodo], map: "idx_pago_metodo")
   @@index([id_reserva], map: "idx_pago_reserva")
   @@index([id_reserva, estado], map: "idx_pago_reserva_estado")
+  @@index([estado, fecha_pago(sort: Desc)], map: "idx_pago_reserva_estado_fecha")
 }
 
 model preferencias {
@@ -1510,25 +1531,28 @@ model tipo_tratamiento {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model transaccion {
-  id_transaccion       BigInt           @id @default(autoincrement())
-  id_folio             BigInt
-  id_tipo_transaccion  BigInt
-  monto                Decimal          @db.Decimal(12, 2)
-  descripcion          String           @db.VarChar(255)
-  fecha_hora           DateTime         @default(now()) @db.Timestamp(6)
-  id_empleado_registro BigInt?
-  punto_venta          String?          @db.VarChar(100)
-  estado               String?          @default("Procesado") @db.VarChar(50)
-  referencia_interna   String?          @db.VarChar(100)
-  conciliacion         conciliacion?
-  EMPLEADO             EMPLEADO?        @relation(fields: [id_empleado_registro], references: [id_empleado], onUpdate: NoAction)
-  FOLIO_PASAJERO       FOLIO_PASAJERO   @relation(fields: [id_folio], references: [id_folio], onDelete: Cascade, onUpdate: NoAction)
-  TIPO_TRANSACCION     TIPO_TRANSACCION @relation(fields: [id_tipo_transaccion], references: [id_tipo_transaccion], onUpdate: NoAction)
+  id_transaccion        BigInt              @id @default(autoincrement())
+  id_folio              BigInt
+  id_tipo_transaccion   BigInt
+  monto                 Decimal             @db.Decimal(12, 2)
+  descripcion           String              @db.VarChar(255)
+  fecha_hora            DateTime            @default(now()) @db.Timestamp(6)
+  id_empleado_registro  BigInt?
+  punto_venta           String?             @db.VarChar(100)
+  estado                String?             @default("Procesado") @db.VarChar(50)
+  referencia_interna    String?             @db.VarChar(100)
+  id_categoria_servicio Int?
+  conciliacion          conciliacion?
+  categoria_servicio    categoria_servicio? @relation(fields: [id_categoria_servicio], references: [id_categoria], onDelete: NoAction, onUpdate: NoAction)
+  EMPLEADO              EMPLEADO?           @relation(fields: [id_empleado_registro], references: [id_empleado], onUpdate: NoAction)
+  FOLIO_PASAJERO        FOLIO_PASAJERO      @relation(fields: [id_folio], references: [id_folio], onDelete: Cascade, onUpdate: NoAction)
+  TIPO_TRANSACCION      TIPO_TRANSACCION    @relation(fields: [id_tipo_transaccion], references: [id_tipo_transaccion], onUpdate: NoAction)
 
   @@index([estado], map: "idx_transaccion_estado")
   @@index([fecha_hora], map: "idx_transaccion_fecha")
   @@index([id_folio], map: "idx_transaccion_folio")
   @@index([id_tipo_transaccion], map: "idx_transaccion_tipo")
+  @@index([id_categoria_servicio, fecha_hora(sort: Desc)], map: "idx_transaccion_categoria_fecha")
 }
 
 model transfusion {
@@ -1613,6 +1637,33 @@ model sesiones_usuario {
   USUARIO       USUARIO  @relation(fields: [id_usuario], references: [id_usuario], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([id_usuario, activa], map: "idx_sesiones_usuario")
+}
+
+model categoria_servicio {
+  id_categoria Int           @id @default(autoincrement())
+  nombre       String        @unique @db.VarChar(100)
+  descripcion  String?
+  activo       Boolean       @default(true)
+  transaccion  transaccion[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model rendimiento_empleado {
+  id_rendimiento                                       Int       @id @default(autoincrement())
+  id_empleado                                          BigInt
+  periodo                                              DateTime  @db.Date
+  puntuacion                                           Decimal?  @db.Decimal(4, 2)
+  asistencia_pct                                       Decimal?  @db.Decimal(5, 2)
+  evaluaciones_count                                   Int?      @default(0)
+  notas                                                String?
+  id_evaluador                                         BigInt?
+  created_at                                           DateTime  @default(now()) @db.Timestamp(6)
+  EMPLEADO_rendimiento_empleado_id_empleadoToEMPLEADO  EMPLEADO  @relation("rendimiento_empleado_id_empleadoToEMPLEADO", fields: [id_empleado], references: [id_empleado], onDelete: Cascade, onUpdate: NoAction)
+  EMPLEADO_rendimiento_empleado_id_evaluadorToEMPLEADO EMPLEADO? @relation("rendimiento_empleado_id_evaluadorToEMPLEADO", fields: [id_evaluador], references: [id_empleado], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_empleado], map: "idx_rendimiento_empleado_id")
+  @@index([periodo(sort: Desc)], map: "idx_rendimiento_periodo")
 }
 
 enum estado_usuario {
