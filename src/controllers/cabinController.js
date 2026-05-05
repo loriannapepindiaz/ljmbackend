@@ -16,7 +16,7 @@ const normalizeCabinType = (type) => ({
   size: type.tamano_m2 ? `${toNumber(type.tamano_m2)} m2` : null,
   feature: type.nombre,
   capacity: type.capacidad_max ? `${type.capacidad_max} huespedes` : null,
-  pricePerNight: toNumber(type.precio_noche) ?? 0,
+  pricePerNight: toNumber(type.precio_noche),
   highlights: [
     type.capacidad_max ? `Capacidad maxima: ${type.capacidad_max} huespedes` : null,
     type.tamano_m2 ? `${toNumber(type.tamano_m2)} m2 de espacio privado` : null,
@@ -27,6 +27,64 @@ const normalizeCabinType = (type) => ({
   gallery: [type.imagen_url].filter(Boolean),
   availableCabins: type.HABITACION?.length ?? 0,
 });
+
+export const getCabinas = async (req, res, next) => {
+  try {
+    const { id_crucero, categoria, estado } = req.query;
+
+    const where = {};
+
+    if (estado) {
+      where.estado = { equals: estado, mode: "insensitive" };
+    }
+
+    if (categoria) {
+      where.TIPO_HABITACION = {
+        nombre: { contains: categoria, mode: "insensitive" },
+      };
+    }
+
+    if (id_crucero) {
+      const parsed = Number(id_crucero);
+      if (!Number.isInteger(parsed)) {
+        return res.status(400).json({ ok: false, message: "id_crucero debe ser un entero válido." });
+      }
+      where.CUBIERTA = { id_crucero: parsed };
+    }
+
+    const habitaciones = await prisma.hABITACION.findMany({
+      where,
+      select: {
+        id_habitacion: true,
+        numero_cabina: true,
+        estado: true,
+        CUBIERTA: {
+          select: {
+            numero_cubierta: true,
+            id_crucero: true,
+            CRUCERO: { select: { nombre: true } },
+          },
+        },
+        TIPO_HABITACION: { select: { nombre: true } },
+      },
+      orderBy: [{ id_cubierta: "asc" }, { numero_cabina: "asc" }],
+    });
+
+    const data = serialize(habitaciones).map((h) => ({
+      id: String(h.id_habitacion),
+      numero_cabina: h.numero_cabina ?? null,
+      categoria: h.TIPO_HABITACION?.nombre ?? null,
+      estado: h.estado ?? null,
+      crucero_id: h.CUBIERTA?.id_crucero != null ? String(h.CUBIERTA.id_crucero) : null,
+      crucero_nombre: h.CUBIERTA?.CRUCERO?.nombre ?? null,
+      cubierta_numero: h.CUBIERTA?.numero_cubierta ?? null,
+    }));
+
+    res.json({ ok: true, data, total: data.length });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const getCabinTypes = async (_req, res, next) => {
   try {

@@ -291,6 +291,10 @@ const normalizeDraft = (reservation) => {
     reservationId: String(reservation.id_reserva),
     destination,
     suite,
+    monto_total: reservation.monto_total !== null && reservation.monto_total !== undefined
+      ? Number(reservation.monto_total)
+      : undefined,
+    moneda: reservation.moneda ?? undefined,
     syncStatus: "synced",
   };
 };
@@ -312,7 +316,13 @@ export const saveCurrentBookingDraft = async (req, res, next) => {
     const trip = payload.destination ? await findTripForDestination(payload.destination) : null;
     const cabin = payload.suite ? await findCabinForSuite(payload.suite) : null;
     const suitePrice = parseCurrencyAmount(payload.suite?.pricePerNight);
-    const subtotal = suitePrice || (cabin?.price ? Number(cabin.price) : null);
+    const destinationPrice = parseCurrencyAmount(payload.destination?.precio_desde);
+    const activitiesTotal = Array.isArray(payload.activities)
+      ? payload.activities.reduce((sum, a) => sum + parseCurrencyAmount(a.precio_base), 0)
+      : 0;
+    const suiteTotal = suitePrice || (cabin?.price ? Number(cabin.price) : 0);
+    const computedSubtotal = suiteTotal + destinationPrice + activitiesTotal;
+    const subtotal = computedSubtotal > 0 ? computedSubtotal : null;
     const snapshot = JSON.stringify({ bookingDraft: payload });
     const passengerCount = Array.isArray(payload.companions)
       ? Math.max(1, payload.companions.length)
