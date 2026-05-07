@@ -5,10 +5,12 @@ import {
   updateReserva,
   cancelarReserva,
   getViajesCatalogo,
+  getProximasSalidas,
 } from "../controllers/reservaController.js";
 
 const router = Router();
 
+router.get("/viajes/proximas", getProximasSalidas);
 router.get("/catalogo/viajes", getViajesCatalogo);
 router.get("/", getReservas);
 router.post("/", createReserva);

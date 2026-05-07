@@ -10,6 +10,7 @@ import paymentRoutes from "./paymentRoutes.js";
 import reservaRoutes from "./reservaRoutes.js";
 import pagoAdminRoutes from "./pagoAdminRoutes.js";
 import reporteRoutes from "./reporteRoutes.js";
+import empleadoRoutes from "./empleadoRoutes.js";
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use("/payments", paymentRoutes);
 router.use("/reservas", reservaRoutes);
 router.use("/pagos", pagoAdminRoutes);
 router.use("/reportes", reporteRoutes);
+router.use("/empleados", empleadoRoutes);
 
 export default router;

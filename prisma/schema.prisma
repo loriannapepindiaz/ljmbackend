@@ -48,6 +48,7 @@ model ASIGNACION_CABINA {
   RESERVA           RESERVA    @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction, map: "fk_asig_cab_reserva")
 
   @@id([id_reserva, id_habitacion])
+  @@index([id_habitacion, fecha_asignacion, fecha_hasta], map: "idx_asignacion_habitacion_fecha")
 }
 
 model ASIGNACION_HORARIO {
@@ -202,6 +203,7 @@ model CUBIERTA {
   descripcion     String?      @db.VarChar
   imagen_url      String?
   plano_url       String?
+  tipo_cubierta   String?      @db.VarChar(20)
   CRUCERO         CRUCERO?     @relation(fields: [id_crucero], references: [id_crucero], onDelete: NoAction, onUpdate: NoAction)
   HABITACION      HABITACION[]
   catering        catering[]
@@ -389,6 +391,8 @@ model HABITACION {
   CUBIERTA             CUBIERTA?              @relation(fields: [id_cubierta], references: [id_cubierta], onDelete: NoAction, onUpdate: NoAction)
   TIPO_HABITACION      TIPO_HABITACION?       @relation(fields: [id_tipo_habitacion], references: [id_tipo_habitacion], onDelete: NoAction, onUpdate: NoAction)
   MAYORDOMO_HABITACION MAYORDOMO_HABITACION[]
+
+  @@unique([id_cubierta, numero_cabina], map: "unique_cabina_por_cubierta")
 }
 
 model HABITO_TOXICO {
@@ -678,6 +682,7 @@ model RESERVA {
   VIAJE                VIAJE?                 @relation(fields: [id_viaje], references: [id_viaje], onDelete: NoAction, onUpdate: NoAction)
   dining_requests      dining_requests[]
   historial_viajes     historial_viajes[]
+  mascota_reserva      mascota_reserva[]
   notificaciones       notificaciones[]
   pago_reserva         pago_reserva[]
   reserva_experiencia  reserva_experiencia[]
@@ -738,7 +743,7 @@ model TIPO_HABITACION {
   tamano_m2               Decimal?                  @db.Decimal(7, 2)
   capacidad_ninos         Int                       @default(0)
   imagen_url              String?
-  estado_disponibilidad   String                    @default("disponible") @db.VarChar(20)
+  estado_tipo             String                    @default("disponible") @db.VarChar(20)
   HABITACION              HABITACION[]
   crucero_tipo_habitacion crucero_tipo_habitacion[]
   tarifas_viaje           tarifas_viaje[]
@@ -1664,6 +1669,21 @@ model rendimiento_empleado {
 
   @@index([id_empleado], map: "idx_rendimiento_empleado_id")
   @@index([periodo(sort: Desc)], map: "idx_rendimiento_periodo")
+}
+
+model mascota_reserva {
+  id_mascota          BigInt   @id @default(autoincrement())
+  id_reserva          BigInt
+  nombre_mascota      String   @db.VarChar(100)
+  tipo_animal         String   @db.VarChar(50)
+  raza                String?  @db.VarChar(100)
+  peso_kg             Decimal? @db.Decimal(5, 2)
+  cuidados_especiales String?
+  url_certificado     String?
+  fecha_creacion      DateTime @default(now()) @db.Timestamp(6)
+  RESERVA             RESERVA  @relation(fields: [id_reserva], references: [id_reserva], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_reserva], map: "idx_mascota_reserva_id_reserva")
 }
 
 enum estado_usuario {

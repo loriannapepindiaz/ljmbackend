@@ -115,16 +115,19 @@ const getOccupancy = async (start, end) => {
   return round(Math.min((occupiedCount / totalCabins) * 100, 100));
 };
 
-const getSatisfaction = async (start, end) => {
-  const result = await prisma.testimonios.aggregate({
-    where: {
-      created_at: { gte: start, lte: end },
-      visible: true,
-    },
-    _avg: { puntuacion: true },
-  });
+const getSatisfaction = async () => {
+  const [avg, total] = await Promise.all([
+    prisma.testimonios.aggregate({
+      _avg: { puntuacion: true },
+      _count: { puntuacion: true },
+    }),
+    prisma.testimonios.count(),
+  ]);
 
-  return round(result._avg.puntuacion ?? 0, 1);
+  return {
+    promedio: round(avg._avg.puntuacion ?? 0, 1),
+    total: avg._count.puntuacion ?? 0,
+  };
 };
 
 const getMonthlyIncome = async (start, end) => {
@@ -153,59 +156,70 @@ const getMonthlyIncome = async (start, end) => {
   };
 };
 
-const normalizeService = (categoria) => {
-  const value = (categoria ?? "").toLowerCase();
-  if (value.includes("spa") || value.includes("wellness") || value.includes("bienestar")) return "Spa & Wellness";
-  if (value.includes("excursion") || value.includes("excursi") || value.includes("tour")) return "Excursiones";
-  if (value.includes("dining") || value.includes("comida") || value.includes("cena") || value.includes("gastr")) {
-    return "Dining";
-  }
-  return null;
+const norm = (s) => (s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+const normalizeService = (nombre, categoria) => {
+  // Use the activity NAME to classify (categoria stores destination, not service type)
+  const n = norm(nombre);
+  const c = norm(categoria);
+  const text = `${n} ${c}`;
+
+  if (text.includes("spa") || text.includes("wellness") || text.includes("masaje") || text.includes("relax") || text.includes("bienestar") || text.includes("facial") || text.includes("sauna")) return "Spa & Wellness";
+  if (text.includes("cena") || text.includes("dining") || text.includes("restaur") || text.includes("gastr") || text.includes("comida") || text.includes("buffet") || text.includes("cocina") || text.includes("brunch") || text.includes("almuerzo") || text.includes("bebida")) return "Dining";
+  // Everything else (tours, excursions, water sports, adventures, safaris, etc.)
+  return "Excursiones";
 };
 
 const getIncomeByService = async (start, end) => {
-  const [paidReservations, experiences] = await Promise.all([
-    prisma.pago_reserva.findMany({
+  const totals = { Cruceros: 0, Dining: 0, Excursiones: 0, "Spa & Wellness": 0 };
+
+  // Step 1: total paid (pago_reserva) — this covers the whole reservation (cruise + addons)
+  try {
+    const payments = await prisma.pago_reserva.findMany({
       where: paidPaymentsWhere(start, end),
       select: { monto: true },
-    }),
-    prisma.reserva_experiencia.findMany({
+    });
+    totals.Cruceros = payments.reduce((sum, p) => sum + toNumber(p.monto), 0);
+  } catch (e) {
+    console.error("[incomeByService/pagos]", e?.message);
+  }
+
+  // Step 2: experience addons added by clients — deduct from Cruceros and assign to each service
+  try {
+    const experiences = await prisma.reserva_experiencia.findMany({
       where: {
         RESERVA: {
           fecha_reserva: { gte: start, lte: end },
           estado_reserva: { notIn: CANCELLED_STATUSES },
-          pago_reserva: { some: { estado: { in: PAID_STATUSES } } },
         },
       },
       select: {
         subtotal: true,
         cantidad: true,
         precio_unitario: true,
-        experiencias: { select: { categoria: true } },
+        experiencias: { select: { nombre: true, categoria: true } },
       },
-    }),
-  ]);
+    });
 
-  const totals = {
-    Cruceros: paidReservations.reduce((sum, payment) => sum + toNumber(payment.monto), 0),
-    Dining: 0,
-    Excursiones: 0,
-    "Spa & Wellness": 0,
-  };
+    experiences.forEach((item) => {
+      const service = normalizeService(item.experiencias?.nombre, item.experiencias?.categoria);
+      if (!service) return;
+      const amount = item.subtotal == null
+        ? toNumber(item.precio_unitario) * Number(item.cantidad ?? 1)
+        : toNumber(item.subtotal);
+      totals[service] += amount;
+      // Deduct from Cruceros since the total payment already includes these addons
+      totals.Cruceros = Math.max(0, totals.Cruceros - amount);
+    });
 
-  experiences.forEach((item) => {
-    const service = normalizeService(item.experiencias?.categoria);
-    if (!service) return;
-    const subtotal = item.subtotal == null ? toNumber(item.precio_unitario) * Number(item.cantidad ?? 1) : toNumber(item.subtotal);
-    totals[service] += subtotal;
-  });
+  } catch (e) {
+    console.error("[incomeByService/experiencias]", e?.message);
+  }
 
-  const grandTotal = Object.values(totals).reduce((sum, value) => sum + value, 0);
+  const grandTotal = Object.values(totals).reduce((sum, v) => sum + v, 0);
   return Object.entries(totals).map(([servicio, total]) => ({
     servicio,
-    name: servicio,
     total: round(total),
-    value: round(total),
     porcentaje: grandTotal > 0 ? round((total / grandTotal) * 100) : 0,
   }));
 };
@@ -313,35 +327,123 @@ const getOccupancyByCruise = async (start, end) => {
     .slice(0, 8);
 };
 
+const settle = (promise, fallback) =>
+  promise.then((v) => v).catch((err) => {
+    console.error("[reportes]", err?.message ?? err);
+    return fallback;
+  });
+
+
+export const getReporteEjecutivo = async (_req, res, next) => {
+  try {
+    const now = new Date();
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const monthEnd   = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+
+    const serial = `LJM-${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}`;
+
+    const CONFIRMED = ["confirmada", "Confirmada", "CONFIRMADA", "confirmado", "Confirmado"];
+    const PENDING   = ["pendiente", "Pendiente", "PENDIENTE"];
+
+    const [total, confirmadas, pendientes, pagoAgg, transacciones] = await Promise.all([
+      settle(prisma.rESERVA.count({ where: { fecha_reserva: { gte: monthStart, lte: monthEnd } } }), 0),
+      settle(prisma.rESERVA.count({ where: { fecha_reserva: { gte: monthStart, lte: monthEnd }, estado_reserva: { in: CONFIRMED } } }), 0),
+      settle(prisma.rESERVA.count({ where: { fecha_reserva: { gte: monthStart, lte: monthEnd }, estado_reserva: { in: PENDING } } }), 0),
+      settle(prisma.pago_reserva.aggregate({
+        where: { estado: { in: PAID_STATUSES }, fecha_pago: { gte: monthStart, lte: monthEnd } },
+        _sum: { monto: true },
+      }), { _sum: { monto: null } }),
+      settle(prisma.pago_reserva.findMany({
+        where: { fecha_pago: { gte: monthStart, lte: monthEnd } },
+        select: {
+          monto: true, fecha_pago: true, estado: true,
+          RESERVA: {
+            select: {
+              codigo_reserva: true, estado_reserva: true,
+              CLIENTE: { select: { nombre: true, apellido: true } },
+              VIAJE:   { select: { nombre_viaje: true } },
+            },
+          },
+        },
+        orderBy: { fecha_pago: "desc" },
+        take: 15,
+      }), []),
+    ]);
+
+    // Weekly buckets (week 1–4 of the month)
+    const weeks = [
+      { label: "SEMANA 01", reservas: 0, ingresos: 0 },
+      { label: "SEMANA 02", reservas: 0, ingresos: 0 },
+      { label: "SEMANA 03", reservas: 0, ingresos: 0 },
+      { label: "SEMANA 04", reservas: 0, ingresos: 0 },
+    ];
+
+    transacciones.forEach((p) => {
+      const day = new Date(p.fecha_pago).getUTCDate();
+      const wi = day <= 7 ? 0 : day <= 14 ? 1 : day <= 21 ? 2 : 3;
+      weeks[wi].ingresos += toNumber(p.monto);
+      weeks[wi].reservas += 1;
+    });
+    weeks.forEach((w) => { w.ingresos = round(w.ingresos); });
+
+    const maxIngresos = Math.max(...weeks.map((w) => w.ingresos), 1);
+
+    const data = {
+      serial,
+      fecha_generado: now.toISOString(),
+      resumen: {
+        total,
+        confirmadas,
+        pendientes,
+        ingresos_totales: round(toNumber(pagoAgg._sum.monto)),
+        pct_confirmadas: total > 0 ? round((confirmadas / total) * 100) : 0,
+        pct_pendientes:  total > 0 ? round((pendientes  / total) * 100) : 0,
+        pct_otros:       total > 0 ? round(((total - confirmadas - pendientes) / total) * 100) : 0,
+      },
+      semanas: weeks.map((w) => ({ ...w, pct: round((w.ingresos / maxIngresos) * 100) })),
+      transacciones: transacciones.map((p) => ({
+        fecha:        p.fecha_pago,
+        codigo:       p.RESERVA?.codigo_reserva ?? "—",
+        cliente:      p.RESERVA?.CLIENTE ? `${p.RESERVA.CLIENTE.nombre ?? ""} ${p.RESERVA.CLIENTE.apellido ?? ""}`.trim() : "—",
+        viaje:        p.RESERVA?.VIAJE?.nombre_viaje ?? "—",
+        estado_pago:  p.estado ?? "—",
+        estado_reserva: p.RESERVA?.estado_reserva ?? "—",
+        monto:        round(toNumber(p.monto)),
+      })),
+    };
+
+    res.json({ ok: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getReportes = async (req, res, next) => {
   try {
     const { start, end } = buildRange(req.query);
 
-    const [income, tasaOcupacion, satisfaccionCliente, crecimientoReservas, ingresosPorServicio, ocupacionPorCrucero] =
+    const [income, tasaOcupacion, satisfaccion, crecimientoReservas, ingresosPorServicio, ocupacionPorCrucero] =
       await Promise.all([
-        getMonthlyIncome(start, end),
-        getOccupancy(start, end),
-        getSatisfaction(start, end),
-        getGrowth(start, end),
-        getIncomeByService(start, end),
-        getOccupancyByCruise(start, end),
+        settle(getMonthlyIncome(start, end),    { totalIncome: 0, ingresosPorMes: [] }),
+        settle(getOccupancy(start, end),         0),
+        settle(getSatisfaction(),                { promedio: 0, total: 0 }),
+        settle(getGrowth(start, end),            0),
+        settle(getIncomeByService(start, end),   []),
+        settle(getOccupancyByCruise(start, end), []),
       ]);
 
     const data = {
-      ingresos_mensuales: income.totalIncome,
-      tasa_ocupacion: tasaOcupacion,
-      satisfaccion_cliente: satisfaccionCliente,
+      ingresos_mensuales:   income.totalIncome,
+      tasa_ocupacion:       tasaOcupacion,
+      satisfaccion_cliente: satisfaccion.promedio,
+      satisfaccion_total:   satisfaccion.total,
       crecimiento_reservas: crecimientoReservas,
-      ingresos_por_mes: income.ingresosPorMes,
+      ingresos_por_mes:     income.ingresosPorMes,
       ingresos_por_servicio: ingresosPorServicio,
       ocupacion_por_crucero: ocupacionPorCrucero,
     };
 
-    res.json({
-      ok: true,
-      data,
-      ...data,
-    });
+    res.json({ ok: true, data });
   } catch (error) {
     next(error);
   }

@@ -56,7 +56,7 @@ const normalizeReserva = (r) => ({
       : null,
   cabin:
     r.ASIGNACION_CABINA?.[0]?.HABITACION?.numero_cabina ?? "—",
-  cabina_id:
+  habitacion_id:
     r.ASIGNACION_CABINA?.[0]?.id_habitacion != null
       ? String(r.ASIGNACION_CABINA[0].id_habitacion)
       : null,
@@ -343,6 +343,43 @@ export const getViajesCatalogo = async (_req, res, next) => {
         v.CRUCERO?.id_crucero != null ? String(v.CRUCERO.id_crucero) : null,
       crucero_nombre: v.CRUCERO?.nombre ?? null,
     }));
+    res.json({ ok: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getProximasSalidas = async (_req, res, next) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const viajes = await prisma.vIAJE.findMany({
+      where: {
+        fecha_salida_real: { gte: today },
+        estado_publicacion: "publicado",
+      },
+      select: {
+        id_viaje: true,
+        nombre_viaje: true,
+        fecha_salida_real: true,
+        fecha_llegada_real: true,
+        duracion_dias: true,
+        CRUCERO: { select: { nombre: true } },
+      },
+      orderBy: { fecha_salida_real: "asc" },
+      take: 5,
+    });
+
+    const data = serialize(viajes).map((v) => ({
+      id: String(v.id_viaje),
+      nombre: v.nombre_viaje ?? `Viaje #${v.id_viaje}`,
+      fecha_salida: v.fecha_salida_real,
+      fecha_llegada: v.fecha_llegada_real,
+      duracion_dias: v.duracion_dias,
+      crucero: v.CRUCERO?.nombre ?? null,
+    }));
+
     res.json({ ok: true, data });
   } catch (error) {
     next(error);
