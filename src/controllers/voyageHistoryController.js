@@ -133,9 +133,9 @@ const cabinName = (reservation, draft) =>
   "Habitacion por confirmar";
 
 const destinationName = (reservation, draft) =>
-  draft.destination?.titulo ??
   reservation.VIAJE?.destinos?.titulo ??
   reservation.VIAJE?.nombre_viaje ??
+  draft?.destination?.titulo ??
   "Destino por confirmar";
 
 const shipName = (reservation, draft) => reservation.VIAJE?.CRUCERO?.nombre ?? draft.ship?.title ?? "LJM Sealine";
@@ -145,6 +145,8 @@ const destinationImageFallbacks = {
   "islas maldivas": "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1200&q=80",
   "odisea de las islas griegas": "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1200&q=80",
   "serenidad tropical": "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1200&q=80",
+  "islas del paraiso": "https://images.unsplash.com/photo-1505881502353-a1986add3762?auto=format&fit=crop&w=1200&q=80",
+  "grand horizon": "https://images.unsplash.com/photo-1505881502353-a1986add3762?auto=format&fit=crop&w=1200&q=80",
 };
 
 const normalizeImageKey = (value) =>
@@ -162,11 +164,11 @@ const destinationImage = (reservation, draft) => {
   const title = destinationName(reservation, draft);
 
   return firstText(
+    destination?.imagen_url,
+    destination?.galeria_urls?.[0],
     draft.destination?.imagen_url,
     draft.destination?.imageUrl,
     draft.destination?.galeria_urls?.[0],
-    destination?.imagen_url,
-    destination?.galeria_urls?.[0],
     destinationImageFallbacks[normalizeImageKey(title)],
   );
 };
@@ -304,23 +306,39 @@ export const getCurrentVoyageHistory = async (req, res, next) => {
     }
 
     const client = await ensureMemberCode(rawClient);
+
+    // Preferir reservas confirmadas/pagadas con fecha futura
+    const confirmedStates = ["confirmada", "pagada"];
     const upcomingReservation =
+      reservations.find((reservation) => {
+        const date = reservationDate(reservation);
+        return isFutureDate(date, now) && confirmedStates.includes(String(reservation.estado_reserva ?? "").toLowerCase());
+      }) ??
       reservations.find((reservation) => {
         const date = reservationDate(reservation);
         return isFutureDate(date, now);
       }) ??
       reservations.find((reservation) =>
-        ["confirmada", "pagada", "pendiente"].includes(String(reservation.estado_reserva ?? "").toLowerCase()),
+        confirmedStates.includes(String(reservation.estado_reserva ?? "").toLowerCase()),
       ) ??
       reservations[0] ??
       null;
 
     const storedTravelHistory = storedHistory.map(buildHistoryItem);
     const storedReservationIds = new Set(storedTravelHistory.map((item) => String(item.reservationId)));
+
+    // Only completed (past return date) reservations go to history
     const reservationTravelHistory = reservations
       .filter((reservation) => reservation.id_reserva !== upcomingReservation?.id_reserva)
       .filter((reservation) => !storedReservationIds.has(String(reservation.id_reserva)))
+      .filter((reservation) => isPastDate(reservationReturnDate(reservation), now))
       .map(buildReservationHistoryItem);
+
+    // Additional future reservations (not the primary upcoming one)
+    const additionalUpcomingReservations = reservations
+      .filter((reservation) => reservation.id_reserva !== upcomingReservation?.id_reserva)
+      .filter((reservation) => isFutureDate(reservationDate(reservation), now))
+      .map(buildReservationSummary);
 
     const travelHistory = [
       ...storedTravelHistory,
@@ -351,6 +369,7 @@ export const getCurrentVoyageHistory = async (req, res, next) => {
           totalNights,
         },
         upcomingReservation: upcomingReservationSummary,
+        upcomingReservations: additionalUpcomingReservations,
         travelHistory,
       }),
     });

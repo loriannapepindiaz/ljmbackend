@@ -58,23 +58,33 @@ const includeBooking = {
   },
 };
 
-const findCurrentReservation = (clientId) =>
-  prisma.rESERVA.findFirst({
+const findCurrentReservation = async (clientId) => {
+  // Preferir reservas confirmadas/pagadas sobre las pendientes
+  const confirmed = await prisma.rESERVA.findFirst({
     where: {
       id_cliente: clientId,
-      OR: [
-        {
-          estado_reserva: { equals: "confirmada", mode: "insensitive" },
-          pago_reserva: { some: { estado: { equals: "Pagado", mode: "insensitive" } } },
-        },
-        {
-          estado_reserva: { equals: "pagada", mode: "insensitive" },
-        },
-      ],
+      estado_reserva: { in: ["confirmada", "pagada", "Confirmada", "Pagada"] },
     },
     include: includeBooking,
     orderBy: { fecha_reserva: "desc" },
   });
+  if (confirmed) return confirmed;
+
+  // Si no hay confirmada, devolver cualquier no cancelada/borrador
+  return prisma.rESERVA.findFirst({
+    where: {
+      id_cliente: clientId,
+      NOT: {
+        OR: [
+          { estado_reserva: { equals: "cancelada", mode: "insensitive" } },
+          { estado_reserva: { equals: "borrador", mode: "insensitive" } },
+        ],
+      },
+    },
+    include: includeBooking,
+    orderBy: { fecha_reserva: "desc" },
+  });
+};
 
 const findReservationForClient = async (clientId, reservationId) => {
   const reservation = reservationId
@@ -222,6 +232,8 @@ const destinationImageFallbacks = {
   "islas maldivas": "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1200&q=80",
   "odisea de las islas griegas": "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=1200&q=80",
   "serenidad tropical": "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?auto=format&fit=crop&w=1200&q=80",
+  "islas del paraiso": "https://images.unsplash.com/photo-1505881502353-a1986add3762?auto=format&fit=crop&w=1200&q=80",
+  "grand horizon": "https://images.unsplash.com/photo-1505881502353-a1986add3762?auto=format&fit=crop&w=1200&q=80",
 };
 
 const normalizeImageKey = (value) =>
@@ -238,11 +250,11 @@ const destinationImage = (destination, draft) => {
   const title = destination?.titulo ?? draft.destination?.titulo;
 
   return firstText(
+    destination?.imagen_url,
+    destination?.galeria_urls?.[0],
     draft.destination?.imagen_url,
     draft.destination?.imageUrl,
     draft.destination?.galeria_urls?.[0],
-    destination?.imagen_url,
-    destination?.galeria_urls?.[0],
     destinationImageFallbacks[normalizeImageKey(title)],
   );
 };
@@ -308,12 +320,12 @@ const buildManagePayload = (reservation) => {
     reservationId: reservation.id_reserva,
     reference: payment?.referencia_bancaria ?? reservation.codigo_reserva ?? reservation.id_reserva,
     status: reservation.estado_reserva ? `${reservation.estado_reserva[0].toUpperCase()}${reservation.estado_reserva.slice(1)}` : "Confirmada",
-    destinationName: destination?.titulo ?? draft.destination?.titulo ?? "Reserva LJM Sealine",
+    destinationName: destination?.titulo ?? reservation.VIAJE?.nombre_viaje ?? "Reserva LJM Sealine",
     destinationImage: destinationImage(destination, draft),
     departureDate: depDate,
     returnDate: retDate,
     nights: getDurationDays(draft, reservation),
-    route: [destination?.pais ?? draft.destination?.pais, destination?.puerto_principal ?? destination?.ubicacion ?? draft.destination?.puerto_principal ?? draft.destination?.ubicacion].filter(Boolean).join(" | ") || "Ruta por confirmar",
+    route: [destination?.pais, destination?.puerto_principal ?? destination?.ubicacion].filter(Boolean).join(" | ") || reservation.VIAJE?.nombre_viaje || "Ruta por confirmar",
     suiteName,
     suiteCapacity: suite?.capacidad_max ?? parseCapacity(draft.suite?.capacity) ?? reservation.pasajeros_adultos ?? 1,
     cabinLabel: cabin?.numero_cabina ? `${suiteName} · Cabina ${cabin.numero_cabina}` : suiteName,
@@ -397,15 +409,12 @@ export const getLatestManageBooking = async (_req, res, next) => {
   try {
     const reservation = await prisma.rESERVA.findFirst({
       where: {
-        OR: [
-          {
-            estado_reserva: { equals: "confirmada", mode: "insensitive" },
-            pago_reserva: { some: { estado: { equals: "Pagado", mode: "insensitive" } } },
-          },
-          {
-            estado_reserva: { equals: "pagada", mode: "insensitive" },
-          },
-        ],
+        NOT: {
+          OR: [
+            { estado_reserva: { equals: "cancelada", mode: "insensitive" } },
+            { estado_reserva: { equals: "borrador", mode: "insensitive" } },
+          ],
+        },
       },
       include: includeBooking,
       orderBy: { fecha_reserva: "desc" },

@@ -338,8 +338,22 @@ export const getProfile = async (req, res, next) => {
       ) ??
       null;
 
+    const additionalUpcomingReservations = reservations
+      .filter((reservation) => reservation.id_reserva !== upcomingReservation?.id_reserva)
+      .filter((reservation) => {
+        const date = reservationDate(reservation);
+        return date && new Date(date) >= now;
+      })
+      .map(buildReservationSummary);
+
     const reservationHistory = reservations
       .filter((reservation) => reservation.id_reserva !== upcomingReservation?.id_reserva)
+      .filter((reservation) => {
+        const returnDate = reservationReturnDate(reservation);
+        if (!returnDate) return false;
+        const date = new Date(returnDate);
+        return !Number.isNaN(date.getTime()) && date < now;
+      })
       .map((reservation) => {
         const summary = buildReservationSummary(reservation);
         return {
@@ -413,6 +427,7 @@ export const getProfile = async (req, res, next) => {
         totalNights,
       },
       upcomingReservation: upcomingReservationSummary,
+      upcomingReservations: additionalUpcomingReservations,
       travelHistory,
       recommendation: getRecommendation(preferences, upcomingReservationSummary, travelHistory),
     };

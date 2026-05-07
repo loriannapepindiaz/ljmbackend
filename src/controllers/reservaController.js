@@ -357,7 +357,6 @@ export const getProximasSalidas = async (_req, res, next) => {
     const viajes = await prisma.vIAJE.findMany({
       where: {
         fecha_salida_real: { gte: today },
-        estado_publicacion: "publicado",
       },
       select: {
         id_viaje: true,
@@ -368,7 +367,7 @@ export const getProximasSalidas = async (_req, res, next) => {
         CRUCERO: { select: { nombre: true } },
       },
       orderBy: { fecha_salida_real: "asc" },
-      take: 5,
+      take: 10,
     });
 
     const data = serialize(viajes).map((v) => ({
