@@ -170,8 +170,14 @@ export const getTiposHabitacion = async (_req, res, next) => {
 /* ─── Tipos de cabina (frontend público) ────────────────────────────── */
 const normalizeCabinType = (type) => ({
   id: String(type.id_tipo_habitacion),
-  title: type.nombre, nombre: type.nombre,
-  description: type.descripcion, imageUrl: type.imagen_url,
+  idTipoHabitacion: type.id_tipo_habitacion,
+  id_tipo_habitacion: type.id_tipo_habitacion,
+  idHabitacion: type.HABITACION?.[0]?.id_habitacion ?? null,
+  id_habitacion: type.HABITACION?.[0]?.id_habitacion ?? null,
+  title: type.nombre,
+  nombre: type.nombre,
+  description: type.descripcion,
+  imageUrl: type.imagen_url,
   size: type.tamano_m2 ? `${toNumber(type.tamano_m2)} m2` : null,
   feature: type.nombre,
   capacity: type.capacidad_max ? `${type.capacidad_max} huespedes` : null,
@@ -189,7 +195,12 @@ const normalizeCabinType = (type) => ({
 export const getCabinTypes = async (_req, res, next) => {
   try {
     const cabinTypes = await prisma.tIPO_HABITACION.findMany({
-      where: { estado_disponibilidad: { equals: "disponible", mode: "insensitive" } },
+      where: {
+        estado_disponibilidad: { equals: "disponible", mode: "insensitive" },
+        HABITACION: {
+          some: { estado: { equals: "disponible", mode: "insensitive" } },
+        },
+      },
       select: {
         id_tipo_habitacion: true, nombre: true, descripcion: true,
         capacidad_max: true, precio_noche: true, tamano_m2: true,

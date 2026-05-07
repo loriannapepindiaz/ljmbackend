@@ -16,6 +16,8 @@ const splitFullName = (fullName) => {
   return { nombre, apellido };
 };
 
+const buildMemberCode = (clientId) => `LJM-${String(clientId).padStart(6, "0")}`;
+
 const sanitizeUser = (user) => ({
   id: user.id_usuario,
   username: user.username,
@@ -111,6 +113,11 @@ export const registerClientUser = async ({ fullName, email, password }) => {
       },
     });
 
+    const clientWithMemberCode = await tx.cLIENTE.update({
+      where: { id_cliente: client.id_cliente },
+      data: { member_code: buildMemberCode(client.id_cliente) },
+    });
+
     return tx.uSUARIO.create({
       data: {
         username: cleanUsername,
@@ -118,7 +125,7 @@ export const registerClientUser = async ({ fullName, email, password }) => {
         password_hash: passwordHash,
         es_cliente: true,
         CLIENTE: {
-          connect: { id_cliente: client.id_cliente },
+          connect: { id_cliente: clientWithMemberCode.id_cliente },
         },
         ...(clientRoleId
           ? {

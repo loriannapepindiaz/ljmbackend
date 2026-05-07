@@ -6,10 +6,26 @@ import apiRoutes from "./src/routes/index.js";
 import { errorHandler, notFoundHandler } from "./src/middlewares/errorHandler.js";
 
 const app = express();
+const allowedOrigins = new Set([
+  env.frontendUrl,
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:5174",
+  "http://127.0.0.1:5174",
+  "http://localhost:5175",
+  "http://127.0.0.1:5175",
+]);
 
 app.use(
   cors({
-    origin: env.frontendUrl,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origen no permitido por CORS: ${origin}`));
+    },
     credentials: true,
   }),
 );

@@ -2,6 +2,16 @@ import prisma from "../../prismaClient.js";
 import { HttpError } from "../utils/httpError.js";
 
 const DRAFT_STATE = "pendiente";
+const SERVICE_FEE_RATE = 0.05;
+const BOOKING_DRAFT_LOG_PREFIX = "[BookingDraft API]";
+
+const logBookingDraftStep = (step, data = undefined) => {
+  console.log(BOOKING_DRAFT_LOG_PREFIX, step, data ?? "");
+};
+
+const logBookingDraftError = (step, error) => {
+  console.error(BOOKING_DRAFT_LOG_PREFIX, "ERROR", step, error);
+};
 
 const serialize = (data) =>
   JSON.parse(JSON.stringify(data, (_key, value) =>
@@ -34,6 +44,8 @@ const includeDraftRelations = {
       id_viaje: true,
       nombre_viaje: true,
       duracion_dias: true,
+      fecha_salida_real: true,
+      fecha_llegada_real: true,
       destinos: {
         select: {
           id: true,
@@ -64,6 +76,7 @@ const includeDraftRelations = {
       },
     },
   },
+  mascota_reserva: true,
 };
 
 const findDraftReservation = (idCliente) =>
@@ -86,14 +99,34 @@ const findTripForDestination = async (destination) => {
           ? { destinos: { titulo: { contains: title, mode: "insensitive" } } }
           : {}),
     },
-    select: { id_viaje: true },
+    select: {
+      id_viaje: true,
+      fecha_salida_real: true,
+      fecha_llegada_real: true,
+      duracion_dias: true,
+    },
     orderBy: { fecha_salida_real: "asc" },
   });
 };
 
 const findCabinForSuite = async (suite) => {
-  const id = Number(suite?.id);
+  const cabinId = Number(suite?.idHabitacion ?? suite?.id_habitacion);
+  const id = Number(suite?.idTipoHabitacion ?? suite?.id_tipo_habitacion ?? suite?.id);
   const title = suite?.title ?? suite?.nombre;
+
+  if (Number.isInteger(cabinId) && cabinId > 0) {
+    const cabin = await prisma.hABITACION.findFirst({
+      where: { id_habitacion: cabinId },
+      select: {
+        id_habitacion: true,
+        TIPO_HABITACION: {
+          select: { precio_noche: true },
+        },
+      },
+    });
+
+    return cabin ? { id_habitacion: cabin.id_habitacion, price: cabin.TIPO_HABITACION?.precio_noche } : null;
+  }
 
   const type = await prisma.tIPO_HABITACION.findFirst({
     where: {
@@ -124,6 +157,25 @@ const findCabinForSuite = async (suite) => {
 
 const hasActivePetCare = (personalization) =>
   personalization?.services?.some((service) => service.id === "pet-care" && service.active) ?? false;
+
+const normalizeAnimalCompanion = (animal) => {
+  if (!animal?.nombre || !animal?.tipoAnimal) {
+    return null;
+  }
+
+  return {
+    nombre: String(animal.nombre).trim(),
+    tipoAnimal: String(animal.tipoAnimal).trim(),
+    raza: String(animal.raza ?? "").trim(),
+    pesoKg: String(animal.pesoKg ?? "").trim(),
+    unidadPeso: ["kg", "lb"].includes(String(animal.unidadPeso ?? "").toLowerCase())
+      ? String(animal.unidadPeso).toLowerCase()
+      : "kg",
+    cuidadosEspeciales: String(animal.cuidadosEspeciales ?? "").trim(),
+    certificadoNombre: String(animal.certificadoNombre ?? "").trim(),
+    certificadoTipo: String(animal.certificadoTipo ?? "").trim(),
+  };
+};
 
 const normalizeDiet = (diet) => {
   const normalizedDiet = String(diet ?? "")
@@ -178,6 +230,91 @@ const parseCurrencyAmount = (value) => {
   return Number.isFinite(parsedValue) ? parsedValue : 0;
 };
 
+const addDays = (value, days) => {
+  if (!value || !days) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  date.setDate(date.getDate() + Number(days));
+  return date;
+};
+
+const calculateDraftCharges = (payload, cabin) => {
+  logBookingDraftStep("Calculando cargos", {
+    destination: payload.destination?.titulo,
+    destinationPriceRaw: payload.destination?.precio_desde,
+    suite: payload.suite?.title,
+    suitePriceRaw: payload.suite?.pricePerNight,
+    cabinPriceRaw: cabin?.price,
+    activitiesCount: Array.isArray(payload.activities) ? payload.activities.length : 0,
+  });
+
+  const destinationPrice = parseCurrencyAmount(payload.destination?.precio_desde);
+  const suitePrice = parseCurrencyAmount(payload.suite?.pricePerNight);
+  const cabinPrice = cabin?.price ? Number(cabin.price) : 0;
+  const activitiesTotal = Array.isArray(payload.activities)
+    ? payload.activities.reduce(
+        (sum, activity) => sum + parseCurrencyAmount(activity.precio_base),
+        0,
+      )
+    : 0;
+  const subtotal = destinationPrice + (suitePrice || cabinPrice) + activitiesTotal;
+  const serviceFee = subtotal > 0 ? Math.round(subtotal * SERVICE_FEE_RATE) : 0;
+
+  const charges = {
+    destinationPrice,
+    suitePrice: suitePrice || cabinPrice,
+    activitiesTotal,
+    serviceFee,
+    subtotal,
+    total: subtotal + serviceFee,
+  };
+
+  logBookingDraftStep("Cargos calculados", charges);
+
+  return charges;
+};
+
+const buildSuiteFromAssignedCabin = (type) => type
+  ? {
+      id: String(type.id_tipo_habitacion),
+      title: type.nombre,
+      description: type.descripcion,
+      imageUrl: type.imagen_url,
+      size: type.tamano_m2 ? `${Number(type.tamano_m2)} m2` : undefined,
+      feature: type.nombre,
+      capacity: type.capacidad_max ? `${type.capacidad_max} huespedes` : undefined,
+      pricePerNight: type.precio_noche ? Number(type.precio_noche) : 0,
+      highlights: [],
+      amenities: [],
+      gallery: [type.imagen_url].filter(Boolean),
+    }
+  : undefined;
+
+const resolveSuitePrice = ({ suite, charges, type }) =>
+  parseCurrencyAmount(suite?.pricePerNight) ||
+  parseCurrencyAmount(charges?.suitePrice) ||
+  parseCurrencyAmount(type?.precio_noche);
+
+const withResolvedSuitePrice = ({ suite, charges, type }) => {
+  if (!suite && !type) {
+    return suite;
+  }
+
+  const suiteFromCabin = buildSuiteFromAssignedCabin(type);
+  const mergedSuite = {
+    ...suiteFromCabin,
+    ...suite,
+  };
+  const resolvedPrice = resolveSuitePrice({ suite: mergedSuite, charges, type });
+
+  return {
+    ...mergedSuite,
+    pricePerNight: resolvedPrice,
+  };
+};
+
 const syncCompanions = async (reservationId, companions = []) => {
   await prisma.pASAJERO.deleteMany({
     where: {
@@ -201,6 +338,30 @@ const syncCompanions = async (reservationId, companions = []) => {
       relacion_titular: "acompanante",
       es_titular: false,
     })),
+  });
+};
+
+const syncAnimalCompanion = async (reservationId, animalCompanion) => {
+  await prisma.mascota_reserva.deleteMany({
+    where: { id_reserva: reservationId },
+  });
+
+  const animal = normalizeAnimalCompanion(animalCompanion);
+
+  if (!animal) {
+    return;
+  }
+
+  await prisma.mascota_reserva.create({
+    data: {
+      id_reserva: reservationId,
+      nombre_mascota: animal.nombre,
+      tipo_animal: animal.tipoAnimal,
+      raza: animal.raza || null,
+      peso_kg: parseCurrencyAmount(animal.pesoKg) || null,
+      cuidados_especiales: animal.cuidadosEspeciales || null,
+      url_certificado: animal.certificadoNombre || null,
+    },
   });
 };
 
@@ -270,30 +431,45 @@ const normalizeDraft = (reservation) => {
   const destination = snapshot.destination ?? reservation.VIAJE?.destinos ?? undefined;
   const assignedCabin = reservation.ASIGNACION_CABINA?.[0]?.HABITACION;
   const type = assignedCabin?.TIPO_HABITACION;
-  const suite = snapshot.suite ?? (type
-    ? {
-        id: String(type.id_tipo_habitacion),
-        title: type.nombre,
-        description: type.descripcion,
-        imageUrl: type.imagen_url,
-        size: type.tamano_m2 ? `${Number(type.tamano_m2)} m2` : undefined,
-        feature: type.nombre,
-        capacity: type.capacidad_max ? `${type.capacidad_max} huespedes` : undefined,
-        pricePerNight: type.precio_noche ? Number(type.precio_noche) : 0,
-        highlights: [],
-        amenities: [],
-        gallery: [type.imagen_url].filter(Boolean),
-      }
-    : undefined);
+  const suite = withResolvedSuitePrice({ suite: snapshot.suite, charges: snapshot.charges, type });
+  const storedAnimal = reservation.mascota_reserva?.[0];
+  const animalCompanion = snapshot.animalCompanion !== undefined
+    ? normalizeAnimalCompanion(snapshot.animalCompanion)
+    : storedAnimal
+      ? {
+          nombre: storedAnimal.nombre_mascota,
+          tipoAnimal: storedAnimal.tipo_animal,
+          raza: storedAnimal.raza ?? "",
+          pesoKg: storedAnimal.peso_kg ? String(storedAnimal.peso_kg) : "",
+          unidadPeso: "kg",
+          cuidadosEspeciales: storedAnimal.cuidados_especiales ?? "",
+          certificadoNombre: storedAnimal.url_certificado ?? "",
+          certificadoTipo: "",
+        }
+      : null;
+  const draftForCharges = { ...snapshot, destination, suite };
+  const charges = calculateDraftCharges(draftForCharges, null);
+  const storedTotal = parseCurrencyAmount(reservation.monto_total);
+  const storedSubtotal = parseCurrencyAmount(reservation.subtotal);
 
   return {
     ...snapshot,
     reservationId: String(reservation.id_reserva),
+    departureDate: snapshot.departureDate ?? reservation.VIAJE?.fecha_salida_real ?? undefined,
+    fecha_salida: snapshot.fecha_salida ?? reservation.VIAJE?.fecha_salida_real ?? undefined,
+    returnDate: snapshot.returnDate ?? reservation.VIAJE?.fecha_llegada_real ?? undefined,
+    fecha_llegada: snapshot.fecha_llegada ?? reservation.VIAJE?.fecha_llegada_real ?? undefined,
     destination,
     suite,
-    monto_total: reservation.monto_total !== null && reservation.monto_total !== undefined
-      ? Number(reservation.monto_total)
-      : undefined,
+    animalCompanion,
+    charges: {
+      ...charges,
+      subtotal: storedSubtotal || charges.subtotal,
+      total: storedTotal || charges.total,
+    },
+    subtotal: storedSubtotal || charges.subtotal,
+    monto_total: storedTotal || charges.total,
+    total: storedTotal || charges.total,
     moneda: reservation.moneda ?? undefined,
     syncStatus: "synced",
   };
@@ -302,9 +478,12 @@ const normalizeDraft = (reservation) => {
 export const getCurrentBookingDraft = async (req, res, next) => {
   try {
     const idCliente = getClientId(req);
+    logBookingDraftStep("GET draft actual", { idCliente });
     const draft = await findDraftReservation(idCliente);
+    logBookingDraftStep("Draft encontrado", { reservationId: draft?.id_reserva, estado: draft?.estado_reserva });
     res.json({ ok: true, data: normalizeDraft(serialize(draft)) });
   } catch (error) {
+    logBookingDraftError("GET draft actual", error);
     next(error);
   }
 };
@@ -313,23 +492,47 @@ export const saveCurrentBookingDraft = async (req, res, next) => {
   try {
     const idCliente = getClientId(req);
     const payload = req.body ?? {};
+    logBookingDraftStep("PUT draft recibido", {
+      idCliente,
+      reservationId: payload.reservationId,
+      destination: payload.destination?.titulo,
+      suite: payload.suite?.title,
+      activitiesCount: Array.isArray(payload.activities) ? payload.activities.length : 0,
+      companionsCount: Array.isArray(payload.companions) ? payload.companions.length : 0,
+      incomingCharges: payload.charges,
+      incomingTotal: payload.total ?? payload.monto_total,
+    });
     const trip = payload.destination ? await findTripForDestination(payload.destination) : null;
+    logBookingDraftStep("Viaje resuelto", trip);
     const cabin = payload.suite ? await findCabinForSuite(payload.suite) : null;
-    const suitePrice = parseCurrencyAmount(payload.suite?.pricePerNight);
-    const destinationPrice = parseCurrencyAmount(payload.destination?.precio_desde);
-    const activitiesTotal = Array.isArray(payload.activities)
-      ? payload.activities.reduce((sum, a) => sum + parseCurrencyAmount(a.precio_base), 0)
-      : 0;
-    const suiteTotal = suitePrice || (cabin?.price ? Number(cabin.price) : 0);
-    const computedSubtotal = suiteTotal + destinationPrice + activitiesTotal;
-    const subtotal = computedSubtotal > 0 ? computedSubtotal : null;
-    const snapshot = JSON.stringify({ bookingDraft: payload });
+    logBookingDraftStep("Cabina resuelta", cabin);
+    const charges = calculateDraftCharges(payload, cabin);
+    const subtotal = charges.total > 0 ? charges.total : null;
+    const animalCompanion = normalizeAnimalCompanion(payload.animalCompanion);
+    const payloadForSnapshot = {
+      ...payload,
+      animalCompanion,
+      departureDate: payload.departureDate ?? payload.fecha_salida ?? trip?.fecha_salida_real ?? undefined,
+      fecha_salida: payload.fecha_salida ?? payload.departureDate ?? trip?.fecha_salida_real ?? undefined,
+      returnDate: payload.returnDate ?? payload.fecha_llegada ?? trip?.fecha_llegada_real ?? addDays(payload.departureDate ?? payload.fecha_salida ?? trip?.fecha_salida_real, trip?.duracion_dias) ?? undefined,
+      fecha_llegada: payload.fecha_llegada ?? payload.returnDate ?? trip?.fecha_llegada_real ?? addDays(payload.departureDate ?? payload.fecha_salida ?? trip?.fecha_salida_real, trip?.duracion_dias) ?? undefined,
+      suite: withResolvedSuitePrice({ suite: payload.suite, charges, type: null }),
+      charges: {
+        ...payload.charges,
+        ...charges,
+      },
+      subtotal: charges.subtotal,
+      monto_total: charges.total,
+      total: charges.total,
+    };
+    const snapshot = JSON.stringify({ bookingDraft: payloadForSnapshot });
     const passengerCount = Array.isArray(payload.companions)
-      ? Math.max(1, payload.companions.length)
+      ? Math.max(1, payload.companions.length + 1)
       : undefined;
-    const petsEnabled = hasActivePetCare(payload.personalization);
+    const petsEnabled = hasActivePetCare(payload.personalization) || Boolean(animalCompanion);
 
     const existingDraft = await findDraftReservation(idCliente);
+    logBookingDraftStep("Draft existente", { reservationId: existingDraft?.id_reserva, estado: existingDraft?.estado_reserva });
 
     const reservation = existingDraft
       ? await prisma.rESERVA.update({
@@ -357,8 +560,14 @@ export const saveCurrentBookingDraft = async (req, res, next) => {
             observaciones: snapshot,
           },
         });
+    logBookingDraftStep("Reserva draft guardada", {
+      reservationId: reservation.id_reserva,
+      subtotal,
+      estado: reservation.estado_reserva,
+    });
 
     if (cabin) {
+      logBookingDraftStep("Sincronizando asignacion de cabina", { reservationId: reservation.id_reserva, cabinId: cabin.id_habitacion });
       await prisma.aSIGNACION_CABINA.deleteMany({
         where: { id_reserva: reservation.id_reserva },
       });
@@ -367,7 +576,8 @@ export const saveCurrentBookingDraft = async (req, res, next) => {
         data: {
           id_reserva: reservation.id_reserva,
           id_habitacion: cabin.id_habitacion,
-          fecha_asignacion: new Date(),
+          fecha_asignacion: payloadForSnapshot.departureDate ? new Date(payloadForSnapshot.departureDate) : new Date(),
+          fecha_hasta: payloadForSnapshot.returnDate ? new Date(payloadForSnapshot.returnDate) : null,
           precio_final: subtotal ?? cabin.price ?? 0,
           estado_asignacion: "activa",
         },
@@ -375,12 +585,20 @@ export const saveCurrentBookingDraft = async (req, res, next) => {
     }
 
     if (Array.isArray(payload.companions)) {
+      logBookingDraftStep("Sincronizando acompanantes", { reservationId: reservation.id_reserva, count: payload.companions.length });
       await syncCompanions(reservation.id_reserva, payload.companions);
     }
 
+    logBookingDraftStep("Sincronizando dining request", { reservationId: reservation.id_reserva, hasPersonalization: Boolean(payload.personalization) });
     await syncDiningRequest(reservation.id_reserva, payload.personalization);
 
+    if (payload.animalCompanion !== undefined) {
+      logBookingDraftStep("Sincronizando companero animal", { reservationId: reservation.id_reserva, hasAnimal: Boolean(animalCompanion) });
+      await syncAnimalCompanion(reservation.id_reserva, animalCompanion);
+    }
+
     if (Array.isArray(payload.activities)) {
+      logBookingDraftStep("Sincronizando experiencias", { reservationId: reservation.id_reserva, count: payload.activities.length });
       await syncExperiences(reservation.id_reserva, payload.activities);
     }
 
@@ -389,8 +607,10 @@ export const saveCurrentBookingDraft = async (req, res, next) => {
       include: includeDraftRelations,
     });
 
+    logBookingDraftStep("Draft actualizado listo para respuesta", { reservationId: updatedDraft?.id_reserva });
     res.json({ ok: true, data: normalizeDraft(serialize(updatedDraft)) });
   } catch (error) {
+    logBookingDraftError("PUT draft actual", error);
     next(error);
   }
 };
