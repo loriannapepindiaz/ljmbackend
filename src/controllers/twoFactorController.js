@@ -1,4 +1,4 @@
-import { sendOtpEmail } from "../utils/emailService.js";
+
 
 // In-memory OTP store: email → { code, expiresAt }
 const otpStore = new Map();
